@@ -1,0 +1,45 @@
+Dataset:
+  trn_path: "../Datasets/CIFAR-10/train"
+  tst_path: "../Datasets/CIFAR-10/test"
+  batch_size: 64
+  in_channels: 3
+  h: 32
+  w: 32
+Argumentation:
+  zero_padding: 4
+  random_crop: [32, 32]
+  mean: [0.491, 0.482, 0.446]
+  std: [0.247, 0.243, 0.261]
+Model:
+  ResNet:
+    block: "ResBlock"
+    n_blocks_list: [3, 3, 3]
+    stride_list: [2, 2, 2]
+    in_channels: 3
+    hidden_channels: 16
+    kernel_size: 3
+    kernel_size_first: 3
+    stride_first: 1
+    norm: "BatchNorm"
+    act: "Relu"
+    down_sample: "conv"
+    bias: False
+    use_short_cut: True
+    use_maxpool: False
+    num_classes: 10
+    device: "cuda"
+  OPT:
+    SGD:
+      lr: 10
+      momentum: 0.9
+      weight_decay: 1e-4
+  Scheduler:
+    MultiStepLR: 
+      gamma: 0.1
+      milestones: [32000, 48000]
+
+Train:
+  iterations: 64000
+  save_freq: 500
+  output: "../Output/ResNet_56-Layers_CIFAR10_EXP"
+  keep_gradients: True
