@@ -5,24 +5,30 @@ Dataset:
   in_channels: 3
   h: 32
   w: 32
+Argumentation:
+  zero_padding: 4
+  random_crop: [32, 32]
 Model:
   ResNet:
     block: "ResBlock"
     n_blocks_list: [3, 2, 2, 2]
+    stride_list: [1, 2, 2, 2]
     in_channels: 3
     hidden_channels: 64
     kernel_size: 3
-    stride: 1
+    kernel_size_first: 3
+    stride_first: 1
     norm: "BatchNorm"
     act: "Relu"
     down_sample: "conv"
     bias: False
     use_short_cut: False
+    use_maxpool: False
     num_classes: 10
     device: "cuda"
   OPT:
     SGD:
-      lr: 1e-4
+      lr: 1e-3
       momentum: 0.9
       weight_decay: 0
 
