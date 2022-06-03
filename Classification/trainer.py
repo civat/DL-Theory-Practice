@@ -4,6 +4,7 @@ import logging
 import argparse
 import torch.nn as nn
 import torch.optim as opt
+import torch.optim.lr_scheduler as lr_scheduler
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
 from collections import defaultdict
@@ -17,8 +18,9 @@ from utils import load_yaml_file
 
 
 if __name__ == "__main__":
+    print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
-    parser.add_argument('--config_file', type=str, default="configs/ResNet_50-Layers_CIFAR10.yaml",
+    parser.add_argument('--config_file', type=str, default="Classification/configs/ResNet_56-Layers_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
@@ -28,17 +30,17 @@ if __name__ == "__main__":
     output_path = os.path.join(configs["Train"]["output"])
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
-    DATE_FORMAT = "%m/%d/%Y %H:%M:%S %p"
-    logging.basicConfig(filename=os.path.join(output_path, "train.log"),
-                        level=logging.INFO,
-                        format=LOG_FORMAT,
-                        datefmt=DATE_FORMAT)
 
-    # Data argumentation
+    log = utils.Logger(os.path.join(output_path, "train.log"))
+
+    # transformations
     train_trans = []
     if "Argumentation" in configs:
         train_trans = utils.get_transformations(configs["Argumentation"])
+        if "mean" in configs["Argumentation"] and "std" in configs["Argumentation"]:
+            mean, std= configs["Argumentation"]["mean"], configs["Argumentation"]["std"]
+        else:
+            mean, std =[0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
     trans = [
         transforms.Resize((configs["Dataset"]["h"], configs["Dataset"]["w"])),
         transforms.ToTensor(),
@@ -53,6 +55,7 @@ if __name__ == "__main__":
     trn_loader = DataLoader(trn_data, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=True)
     tst_loader = DataLoader(tst_data, batch_size=batch_size, shuffle=False, num_workers=1, drop_last=False)
 
+    # Set model
     if "ResNet" in configs["Model"]:
         model_name = "ResNet"
         sub_configs = configs["Model"]["ResNet"]
@@ -67,22 +70,21 @@ if __name__ == "__main__":
         gradients_dic = defaultdict(list)
         keep_gradients = True
 
-    # Calculate the model complexity and number of parameters
-    with torch.cuda.device(0):
-        input_shape = (configs["Dataset"]["in_channels"],
-                       configs["Dataset"]["h"],
-                       configs["Dataset"]["w"])
-        macs, params = get_model_complexity_info(model,
-                                                 input_shape,
-                                                 as_strings=True,
-                                                 print_per_layer_stat=True,
-                                                 verbose=True)
-        logging.info('{:<30}  {:<8}'.format('Computational complexity: ', macs))
-        logging.info('{:<30}  {:<8}'.format('Number of parameters    : ', params))
+    input_shape = (configs["Dataset"]["in_channels"],
+                   configs["Dataset"]["h"],
+                   configs["Dataset"]["w"])
+    macs, params = get_model_complexity_info(model,
+                                             input_shape,
+                                             as_strings=True,
+                                             print_per_layer_stat=True,
+                                             verbose=True)
+    log.logger.info('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    log.logger.info('{:<30}  {:<8}'.format('Number of parameters    : ', params))
 
     criterion = nn.CrossEntropyLoss()
     criterion = criterion.cuda() if sub_configs["device"] == "cuda" else criterion
 
+    # Set optimizer
     if "SGD" in configs["Model"]["OPT"]:
         optimizer = opt.SGD(model.parameters(),
                             lr=float(configs["Model"]["OPT"]["SGD"]["lr"]),
@@ -90,6 +92,15 @@ if __name__ == "__main__":
                             weight_decay=float(configs["Model"]["OPT"]["SGD"]["weight_decay"]))
     else:
         raise NotImplementedError
+
+    # Set scheduler
+    schedulers = None
+    if "Scheduler" in configs["Model"]:
+        if "MultiStepLR" in configs["Model"]["Scheduler"]:
+            scheduler_config = configs["Model"]["Scheduler"]["MultiStepLR"]
+            schedulers = lr_scheduler.MultiStepLR(optimizer, gamma=scheduler_config["gamma"], milestones=scheduler_config["milestones"])
+        else:
+            raise NotImplementedError
 
     iterations = 0
     trn_error_list, tst_error_list, trn_loss_list, tst_loss_list = [], [], [], []
@@ -115,6 +126,8 @@ if __name__ == "__main__":
             optimizer.step()
             trn_pos += (pred.argmax(dim=-1) == y).sum().cpu()
             trn_loss += loss.item()
+            if schedulers is not None:
+                schedulers.step()
 
             iterations += 1
             if iterations % save_freq == 0:
@@ -131,8 +144,8 @@ if __name__ == "__main__":
                 trn_loss_list.append(trn_loss)
                 trn_error = 1 - trn_pos / (batch_size * save_freq)
                 trn_error_list.append(trn_error)
-                logging.info(f"The training loss at {iterations}-th iteration : {trn_loss}")
-                logging.info(f"The training error at {iterations}-th iteration: {trn_error}")
+                log.logger.info(f"The training loss at {iterations}-th iteration : {trn_loss}")
+                log.logger.info(f"The training error at {iterations}-th iteration: {trn_error}")
                 trn_loss = 0.
                 trn_pos = 0.
 
@@ -153,8 +166,8 @@ if __name__ == "__main__":
                 tst_loss = tst_loss / len(tst_data)
                 tst_loss_list.append(tst_loss)
                 tst_error_list.append(tst_error)
-                logging.info(f"The test loss at {iterations}-th iteration : {tst_loss}")
-                logging.info(f"The test error at {iterations}-th iteration: {tst_error}")
+                log.logger.info(f"The test loss at {iterations}-th iteration : {tst_loss}")
+                log.logger.info(f"The test error at {iterations}-th iteration: {tst_error}")
 
                 # save best
                 if tst_error < best_error:
@@ -185,9 +198,9 @@ if __name__ == "__main__":
                     state["gradients"] = gradients_dic
                 torch.save(state, os.path.join(output_path, "last.pth"))
 
-                logging.info(f"The best iteration at {iterations}-th iteration: {best_iter}")
-                logging.info(f"The best error at {iterations}-th iteration    : {best_error}")
-                logging.info()
+                log.logger.info(f"The best iteration at {iterations}-th iteration: {best_iter}")
+                log.logger.info(f"The best error at {iterations}-th iteration    : {best_error}")
+                log.logger.info("")
 
                 plt.figure(figsize=(20, 8), dpi=80)
                 epoch_list = [i + 1 for i in range(len(trn_loss_list))]
