@@ -1,10 +1,8 @@
 import os
 import torch
-import logging
 import argparse
 import torch.nn as nn
 import torch.optim as opt
-import torch.optim.lr_scheduler as lr_scheduler
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
 from collections import defaultdict
@@ -20,7 +18,7 @@ from utils import load_yaml_file
 if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
-    parser.add_argument('--config_file', type=str, default="Classification/configs/ResNet_56-Layers_CIFAR10_EXP.yaml",
+    parser.add_argument('--config_file', type=str, default="configs/ResNet_20-Layers_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
@@ -38,9 +36,9 @@ if __name__ == "__main__":
     if "Argumentation" in configs:
         train_trans = utils.get_transformations(configs["Argumentation"])
         if "mean" in configs["Argumentation"] and "std" in configs["Argumentation"]:
-            mean, std= configs["Argumentation"]["mean"], configs["Argumentation"]["std"]
+            mean, std = configs["Argumentation"]["mean"], configs["Argumentation"]["std"]
         else:
-            mean, std =[0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+            mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
     trans = [
         transforms.Resize((configs["Dataset"]["h"], configs["Dataset"]["w"])),
         transforms.ToTensor(),
@@ -64,6 +62,9 @@ if __name__ == "__main__":
         raise NotImplementedError
 
     model = model.cuda() if sub_configs["device"] == "cuda" else model
+
+    if "Init" in configs["Model"]:
+        utils.init_nn(model, configs["Model"]["Init"])
 
     keep_gradients = False
     if "keep_gradients" in configs["Train"] and configs["Train"]["keep_gradients"] is True:
@@ -94,13 +95,9 @@ if __name__ == "__main__":
         raise NotImplementedError
 
     # Set scheduler
-    schedulers = None
+    scheduler = None
     if "Scheduler" in configs["Model"]:
-        if "MultiStepLR" in configs["Model"]["Scheduler"]:
-            scheduler_config = configs["Model"]["Scheduler"]["MultiStepLR"]
-            schedulers = lr_scheduler.MultiStepLR(optimizer, gamma=scheduler_config["gamma"], milestones=scheduler_config["milestones"])
-        else:
-            raise NotImplementedError
+        scheduler = utils.get_scheduler(optimizer, configs["Model"]["Scheduler"])
 
     iterations = 0
     trn_error_list, tst_error_list, trn_loss_list, tst_loss_list = [], [], [], []
@@ -126,8 +123,8 @@ if __name__ == "__main__":
             optimizer.step()
             trn_pos += (pred.argmax(dim=-1) == y).sum().cpu()
             trn_loss += loss.item()
-            if schedulers is not None:
-                schedulers.step()
+            if scheduler is not None:
+                scheduler.step()
 
             iterations += 1
             if iterations % save_freq == 0:

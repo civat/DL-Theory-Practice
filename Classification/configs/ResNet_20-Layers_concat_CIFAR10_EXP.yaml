@@ -7,14 +7,15 @@ Dataset:
   w: 32
 Argumentation:
   zero_padding: 4
+  random_horizontal_flip: 0.5
   random_crop: [32, 32]
   mean: [0.491, 0.482, 0.446]
-  std: [0.247, 0.243, 0.261]
+  std: [0., 0., 0.]
 Model:
   ResNet:
     block: "ResBlock"
     n_blocks_list: [3, 3, 3]
-    stride_list: [2, 2, 2]
+    stride_list: [1, 2, 2]
     in_channels: 3
     hidden_channels: 16
     kernel_size: 3
@@ -22,7 +23,7 @@ Model:
     stride_first: 1
     norm: "BatchNorm"
     act: "Relu"
-    down_sample: "conv"
+    down_sample: "interpolate"
     bias: False
     use_short_cut: True
     use_maxpool: False
@@ -30,16 +31,16 @@ Model:
     device: "cuda"
   OPT:
     SGD:
-      lr: 10
+      lr: 0.1
       momentum: 0.9
       weight_decay: 1e-4
   Scheduler:
-    MultiStepLR: 
+    MultiStepLR:
       gamma: 0.1
       milestones: [32000, 48000]
 
 Train:
   iterations: 64000
   save_freq: 500
-  output: "../Output/ResNet_56-Layers_CIFAR10_EXP"
+  output: "../Output/ResNet_20-Layers_concat_CIFAR10_EXP"
   keep_gradients: True
