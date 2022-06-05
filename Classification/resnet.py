@@ -32,6 +32,15 @@ class IdentityNorm(nn.Module):
         return x
 
 
+class LambdaLayer(nn.Module):
+    def __init__(self, lambd):
+        super(LambdaLayer, self).__init__()
+        self.lambd = lambd
+
+    def forward(self, x):
+        return self.lambd(x)
+
+
 class ResBlock(nn.Module):
     """
     Complex implementation of ResBlock for supporting most
@@ -101,6 +110,10 @@ class ResBlock(nn.Module):
                     )
                 elif down_sample == "interpolate":
                     pass  # implemented in "forward" method and do nothing here
+                elif down_sample == "zero_padding":
+                    self.shortcut = LambdaLayer(lambda x:
+                                                F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, out_channels // 4, out_channels // 4),
+                                                      "constant", 0))
                 else:
                     raise NotImplementedError
             else:
@@ -113,7 +126,8 @@ class ResBlock(nn.Module):
 
         if self.use_short_cut:
             if self.shortcut is not None:
-                x1 += self.shortcut(x)
+                skip = self.shortcut(x)
+                x1 += skip
             else:
                 # The only reason that we get here is the down_sample=="interpolate".
                 # So we implement the method here.
