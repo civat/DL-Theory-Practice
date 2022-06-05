@@ -24,7 +24,7 @@ Model:
     norm: "BatchNorm"
     act: "Relu"
     down_sample: "interpolate"
-    bias: True
+    bias: False
     use_short_cut: True
     use_maxpool: False
     num_classes: 10

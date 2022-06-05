@@ -1,9 +1,11 @@
 # Deep Learning Theory and Practice
 
 ### Classification
-### 数据集地址：
-CIFAR-10(已转为图像): 
 
-链接：https://pan.baidu.com/s/1nAa92qQPKi2pycJY083LBw 
+To train the model, run the trainer.py using IDE or command line:
 
-提取码：wz28 
+```bash
+python trainer.py --config_file your_config_file.yaml
+```
+
+See yaml files in the "configs" dic for example. 
