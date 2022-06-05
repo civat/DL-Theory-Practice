@@ -1,7 +1,7 @@
 Dataset:
-  trn_path: "../Datasets/CIFAR-10/train"
-  tst_path: "../Datasets/CIFAR-10/test"
-  batch_size: 64
+  name: "CIFAR10"
+  root_path: "../Datasets"
+  batch_size: 128
   in_channels: 3
   h: 32
   w: 32
@@ -9,8 +9,8 @@ Argumentation:
   zero_padding: 4
   random_horizontal_flip: 0.5
   random_crop: [32, 32]
-  mean: [0.491, 0.482, 0.446]
-  std: [0.247, 0.243, 0.261]
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
 Model:
   ResNet:
     block: "ResBlock"
@@ -23,7 +23,7 @@ Model:
     stride_first: 1
     norm: "BatchNorm"
     act: "Relu"
-    down_sample: "conv"
+    down_sample: "interpolate"
     bias: True
     use_short_cut: True
     use_maxpool: False

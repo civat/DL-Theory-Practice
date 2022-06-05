@@ -59,7 +59,7 @@ class ResBlock(nn.Module):
         norm: nn.Module
             The normalization method used in the block.
             Set this to "IdentityNorm" to disable normalization.
-        act: nn.Module object
+        act: nn.Module
             The activation function used in the block.
         down_sample: string
             The down-sampling method used in the block when
@@ -82,11 +82,11 @@ class ResBlock(nn.Module):
         # makes the output channel size irrelevant to the stride.
         p = int((kernel_size - 1) / 2)
         out_channels = int(in_channels * stride * channel_span)
-        self.act = act
         self.stride = stride
         self.use_short_cut = use_short_cut
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias)
         self.norm1 = norm(out_channels)
+        self.act1 = act()
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, bias=bias)
         self.norm2 = norm(out_channels)
 
@@ -108,7 +108,7 @@ class ResBlock(nn.Module):
 
     def forward(self, x):
         x1 = self.norm1(self.conv1(x))
-        x1 = self.act(x1)
+        x1 = self.act1(x1)
         x1 = self.norm2(self.conv2(x1))
 
         if self.use_short_cut:
@@ -147,7 +147,7 @@ class Bottleneck(nn.Module):
         norm: nn.Module
             The normalization method used in the block.
             Set this to "IdentityNorm" to disable normalization.
-        act: nn.Module object
+        act: nn.Module
             The activation function used in the block.
         down_sample: string
             The down-sampling method used in the block when
@@ -165,7 +165,6 @@ class Bottleneck(nn.Module):
             Set this to False make the block as a simply two-layers conv block.
         """
         super().__init__()
-        self.act = act
         self.stride = stride
         self.use_short_cut = use_short_cut
 
@@ -178,10 +177,10 @@ class Bottleneck(nn.Module):
         self.convs = nn.Sequential(
             nn.Conv2d(in_channels, hidden_channels, kernel_size=1, bias=bias),
             norm(hidden_channels),
-            act,
+            act(),
             nn.Conv2d(hidden_channels, hidden_channels, stride=stride, kernel_size=kernel_size, padding=p, bias=bias),
             norm(hidden_channels),
-            act,
+            act(),
             nn.Conv2d(hidden_channels, out_channels, kernel_size=1, bias=bias),
             norm(out_channels),
         )
@@ -284,7 +283,7 @@ class ResNet(nn.Module):
         self.convs = [
             nn.Conv2d(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first, padding=int((kernel_size_first-1)/2), bias=False),
             nn.BatchNorm2d(hidden_channels),
-            act,
+            act(),
         ]
         if use_maxpool:
             self.convs += [nn.MaxPool2d(kernel_size=3, stride=2, padding=1)]
@@ -341,7 +340,7 @@ class ResNet(nn.Module):
         norm: nn.Module
             The normalization method used in the block.
             Set this to "IdentityNorm" to disable normalization.
-        act: nn.Module object
+        act: nn.Module
             The activation function used in the block.
         down_sample: string
             The down-sampling method used in the block when
@@ -375,7 +374,7 @@ class ResNet(nn.Module):
             else:
                 layers.append(block(in_channels, 1 / float(block.expansion), kernel_size, stride, norm, act, down_sample, bias, use_short_cut))
 
-            layers.append(act)
+            layers.append(act())
 
         return layers
 

@@ -29,9 +29,9 @@ def get_norm(norm_type):
 
 def get_activation(act_type):
     if act_type == "Identity":
-        act = resnet.Identity()
+        act = resnet.Identity
     elif act_type == "Relu":
-        act = nn.ReLU(inplace=True)
+        act = nn.ReLU
     else:
         raise NotImplementedError
 
@@ -74,7 +74,7 @@ def init_nn(model, init_configs):
         raise Exception("Only one init method can be specified!")
     if keys[0] in inits_available:
         for name, layer in model.named_modules():
-            if type(layer) == nn.Conv2d:
+            if type(layer) == nn.Conv2d or type(layer) == nn.Linear:
                 nn.init.kaiming_normal_(layer.weight, **init_configs[keys[0]])
 
 

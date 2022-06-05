@@ -8,6 +8,7 @@ import torchvision.transforms as transforms
 from collections import defaultdict
 from torch.utils.data.dataloader import DataLoader
 from ptflops import get_model_complexity_info
+from torchvision import datasets
 
 import resnet
 import utils
@@ -18,7 +19,7 @@ from utils import load_yaml_file
 if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
-    parser.add_argument('--config_file', type=str, default="configs/ResNet_20-Layers_CIFAR10_EXP.yaml",
+    parser.add_argument('--config_file', type=str, default="configs/ResNet_32-Layers_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
@@ -47,8 +48,15 @@ if __name__ == "__main__":
     trn_trans = transforms.Compose(train_trans + trans)
     tst_trans = transforms.Compose(trans)
 
-    trn_data = DatasetCls(configs["Dataset"]["trn_path"], transforms=trn_trans)
-    tst_data = DatasetCls(configs["Dataset"]["tst_path"], transforms=tst_trans)
+    if "name" in configs["Dataset"]:
+        if configs["Dataset"]["name"] == "CIFAR10":
+            trn_data = datasets.CIFAR10(root=configs["Dataset"]["root_path"], train=True, transform=trn_trans, download=True)
+            tst_data = datasets.CIFAR10(root=configs["Dataset"]["root_path"], train=False, transform=tst_trans, download=True)
+        else:
+            raise NotImplementedError
+    else:
+        trn_data = DatasetCls(configs["Dataset"]["trn_path"], transforms=trn_trans)
+        tst_data = DatasetCls(configs["Dataset"]["tst_path"], transforms=tst_trans)
 
     trn_loader = DataLoader(trn_data, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=True)
     tst_loader = DataLoader(tst_data, batch_size=batch_size, shuffle=False, num_workers=1, drop_last=False)
