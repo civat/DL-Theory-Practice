@@ -43,13 +43,13 @@ class LambdaLayer(nn.Module):
 
 class ResBlock(nn.Module):
     """
-    Complex implementation of ResBlock for supporting most
+    Implementation of ResBlock for supporting most
     settings of the module.
     """
 
     expansion = 1
 
-    def __init__(self, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut):
+    def __init__(self, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut, pre_act):
         """
         Initialize ResBlock.
 
@@ -58,7 +58,118 @@ class ResBlock(nn.Module):
         in_channels: int
             Number of channels of input tensor.
         channel_span: int
-            Number of channels of hidden tensor.
+            Channel span of input tensor.
+            This is deisgned for unified API of ResBlock and Bottleneck.
+            For ResBlock, set channel_span=1 in general.
+        kernel_size: int
+            Kernel size of convolution operator.
+        stride: int
+            Stride of the first conv layer in the block.
+            The output channel of the first conv layer is: in_channels*stride
+        norm: nn.Module
+            The normalization method used in the block.
+            Set this to "IdentityNorm" to disable normalization.
+        act: nn.Module
+            The activation function used in the block.
+        down_sample: string
+            The down-sampling method used in the block when
+            the shortcut tensor size is mismatched with the
+            main stream tensor.
+            The available values are:
+                1. "conv": use 1x1 conv layer to match the size;
+                2. "interpolate": use bi-linear interpolation to match the
+                   width and height of the feature maps. Copy the resized feature
+                   map several times to match the channel size.
+                3. "zero_padding": zero padding to match the channel size.
+        bias: bool
+            Whether to use bias in conv layer.
+        use_short_cut: bool
+            Whether to use shortcut connection in the block.
+            Set this to False make the block as a simply two-layers conv block.
+        pre_act: bool
+            Whether to use pre-activation in the ResBlock.
+        """
+        super(ResBlock, self).__init__()
+
+        # Using this padding value for kernel with size > 1
+        # makes the output channel size irrelevant to the stride.
+        p = int((kernel_size - 1) / 2)
+        out_channels = int(in_channels * stride * channel_span)
+        self.stride = stride
+        self.use_short_cut = use_short_cut
+        if not pre_act:
+            self.convs = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
+                norm(out_channels),
+                act(),
+                nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, bias=bias),
+                norm(out_channels)
+            )
+        else:
+            self.convs = nn.Sequential(
+                norm(in_channels),
+                act(),
+                nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
+                norm(out_channels),
+                act(),
+                nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, bias=bias),
+            )
+
+        if use_short_cut:
+            self.shortcut = None
+            # shortcut tensor size will be mismatched with the main stream tensor
+            if stride != 1:
+                if down_sample == "conv":
+                    if not pre_act:
+                        self.shortcut = nn.Sequential(
+                            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
+                            norm(out_channels)
+                        )
+                    else:
+                        self.shortcut = nn.Sequential(
+                            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
+                        )
+                elif down_sample == "interpolate":
+                    pass  # implemented in "forward" method and do nothing here
+                elif down_sample == "zero_padding":
+                    self.shortcut = LambdaLayer(lambda x:
+                                                F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, out_channels // 4, out_channels // 4),
+                                                      "constant", 0))
+                else:
+                    raise NotImplementedError
+            else:
+                self.shortcut = Identity()
+
+    def forward(self, x):
+        x1 = self.convs(x)
+        if self.use_short_cut:
+            if self.shortcut is not None:
+                x1 += self.shortcut(x)
+            else:
+                # The only reason that we get here is the down_sample=="interpolate".
+                # So we implement the method here.
+                h, w = x1.size(-2), x1.size(-1)
+                x = F.interpolate(x, size=(h, w), mode="bilinear")
+                x = x.repeat(1, self.stride, 1, 1)
+                x1 += x
+
+        return x1
+
+
+class Bottleneck(nn.Module):
+
+    expansion = 4
+
+    def __init__(self, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut, pre_act):
+        """
+        Initialize Bottleneck.
+
+        Parameters
+        ----------
+        in_channels: int
+            Number of channels of input tensor.
+        channel_span: int
+            Channel span of input tensor.
             This is deisgned for unified API of ResBlock and Bottleneck.
         kernel_size: int
             Kernel size of convolution operator.
@@ -79,104 +190,14 @@ class ResBlock(nn.Module):
                 2. "interpolate": use bi-linear interpolation to match the
                    width and height of the feature maps. Copy the resized feature
                    map several times to match the channel size.
+                3. "zero_padding": zero padding to match the channel size.
         bias: bool
-            Whether to used bias in conv layer.
+            Whether to use bias in conv layer.
         use_short_cut: bool
-            Whether to used shortcut connection in the block.
+            Whether to use shortcut connection in the block.
             Set this to False make the block as a simply two-layers conv block.
-        """
-        super(ResBlock, self).__init__()
-
-        # Using this padding value for kernel with size > 1
-        # makes the output channel size irrelevant to the stride.
-        p = int((kernel_size - 1) / 2)
-        out_channels = int(in_channels * stride * channel_span)
-        self.stride = stride
-        self.use_short_cut = use_short_cut
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias)
-        self.norm1 = norm(out_channels)
-        self.act1 = act()
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, bias=bias)
-        self.norm2 = norm(out_channels)
-
-        if use_short_cut:
-            self.shortcut = None
-            # shortcut tensor size will be mismatched with the main stream tensor
-            if stride != 1:
-                if down_sample == "conv":
-                    self.shortcut = nn.Sequential(
-                        nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
-                        norm(out_channels)
-                    )
-                elif down_sample == "interpolate":
-                    pass  # implemented in "forward" method and do nothing here
-                elif down_sample == "zero_padding":
-                    self.shortcut = LambdaLayer(lambda x:
-                                                F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, out_channels // 4, out_channels // 4),
-                                                      "constant", 0))
-                else:
-                    raise NotImplementedError
-            else:
-                self.shortcut = Identity()
-
-    def forward(self, x):
-        x1 = self.norm1(self.conv1(x))
-        x1 = self.act1(x1)
-        x1 = self.norm2(self.conv2(x1))
-
-        if self.use_short_cut:
-            if self.shortcut is not None:
-                skip = self.shortcut(x)
-                x1 += skip
-            else:
-                # The only reason that we get here is the down_sample=="interpolate".
-                # So we implement the method here.
-                h, w = x1.size(-2), x1.size(-1)
-                x = F.interpolate(x, size=(h, w), mode="bilinear")
-                x = x.repeat(1, self.stride, 1, 1)
-                x1 += x
-
-        return x1
-
-
-class Bottleneck(nn.Module):
-
-    expansion = 4
-
-    def __init__(self, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut):
-        """
-        Initialize Bottleneck.
-
-        Parameters
-        ----------
-        in_channels: int
-            Number of channels of input tensor.
-        channel_span: int
-            Number of channels of hidden tensor.
-        kernel_size: int
-            Kernel size of convolution operator.
-        stride: int
-            Stride of the first conv layer in the block.
-            The output channel of the first conv layer is: in_channels*stride
-        norm: nn.Module
-            The normalization method used in the block.
-            Set this to "IdentityNorm" to disable normalization.
-        act: nn.Module
-            The activation function used in the block.
-        down_sample: string
-            The down-sampling method used in the block when
-            the shortcut tensor size is mismatched with the
-            main stream tensor.
-            The available values are:
-                1. "conv": use 1x1 conv layer to match the size;
-                2. "interpolate": use bi-linear interpolation to match the
-                   width and height of the feature maps. Copy the resized feature
-                   map several times to match the channel size.
-        bias: bool
-            Whether to used bias in conv layer.
-        use_short_cut: bool
-            Whether to used shortcut connection in the block.
-            Set this to False make the block as a simply two-layers conv block.
+        pre_act: bool
+            Whether to use pre-activation in the ResBlock.
         """
         super().__init__()
         self.stride = stride
@@ -188,28 +209,51 @@ class Bottleneck(nn.Module):
 
         hidden_channels = int(in_channels * channel_span)
         out_channels = int(hidden_channels * Bottleneck.expansion)
-        self.convs = nn.Sequential(
-            nn.Conv2d(in_channels, hidden_channels, kernel_size=1, bias=bias),
-            norm(hidden_channels),
-            act(),
-            nn.Conv2d(hidden_channels, hidden_channels, stride=stride, kernel_size=kernel_size, padding=p, bias=bias),
-            norm(hidden_channels),
-            act(),
-            nn.Conv2d(hidden_channels, out_channels, kernel_size=1, bias=bias),
-            norm(out_channels),
-        )
+
+        if not act:
+            self.convs = nn.Sequential(
+                nn.Conv2d(in_channels, hidden_channels, kernel_size=1, bias=bias),
+                norm(hidden_channels),
+                act(),
+                nn.Conv2d(hidden_channels, hidden_channels, stride=stride, kernel_size=kernel_size, padding=p, bias=bias),
+                norm(hidden_channels),
+                act(),
+                nn.Conv2d(hidden_channels, out_channels, kernel_size=1, bias=bias),
+                norm(out_channels),
+            )
+        else:
+            self.convs = nn.Sequential(
+                norm(in_channels),
+                act(),
+                nn.Conv2d(in_channels, hidden_channels, kernel_size=1, bias=bias),
+                norm(hidden_channels),
+                act(),
+                nn.Conv2d(hidden_channels, hidden_channels, stride=stride, kernel_size=kernel_size, padding=p, bias=bias),
+                norm(hidden_channels),
+                act(),
+                nn.Conv2d(hidden_channels, out_channels, kernel_size=1, bias=bias),
+            )
 
         if use_short_cut:
             self.shortcut = None
             # shortcut tensor size will be mismatched with the main stream tensor
             if in_channels != out_channels:
                 if down_sample == "conv":
-                    self.shortcut = nn.Sequential(
-                        nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
-                        norm(out_channels)
-                    )
+                    if not act:
+                        self.shortcut = nn.Sequential(
+                            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
+                            norm(out_channels)
+                        )
+                    else:
+                        self.shortcut = nn.Sequential(
+                            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
+                        )
                 elif down_sample == "interpolate":
                     pass  # implemented in "forward" method and do nothing here
+                elif down_sample == "zero_padding":
+                    self.shortcut = LambdaLayer(lambda x:
+                                                F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, out_channels // 4, out_channels // 4),
+                                                      "constant", 0))
                 else:
                     raise NotImplementedError
             else:
@@ -217,10 +261,10 @@ class Bottleneck(nn.Module):
         
         self.hidden_channels = hidden_channels
         self.out_channels = out_channels
+        self.in_channels = in_channels
 
     def forward(self, x):
         x1 = self.convs(x)
-
         if self.use_short_cut:
             if self.shortcut is not None:
                 x1 += self.shortcut(x)
@@ -229,7 +273,7 @@ class Bottleneck(nn.Module):
                 # So we implement the method here.
                 h, w = x1.size(-2), x1.size(-1)
                 x = F.interpolate(x, size=(h, w), mode="bilinear")
-                x = x.repeat(1, int(self.out_channels / self.hidden_channels), 1, 1)
+                x = x.repeat(1, int(self.out_channels / self.in_channels), 1, 1)
                 x1 += x
 
         return x1
@@ -238,12 +282,13 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
     """
     Implementation of the ResNet paper:
-    "Deep Residual Learning for Image Recognition"
+        1. "Deep Residual Learning for Image Recognition"
+        2. "Identity Mappings in Deep Residual Networks"
     """
 
     def __init__(self, block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size, 
-                 kernel_size_first, stride_first, norm, act, down_sample, bias, use_short_cut, use_maxpool, 
-                 num_classes):
+                 kernel_size_first, stride_first, use_bn_first, use_act_first, norm, act, down_sample, 
+                 bias, use_short_cut, use_maxpool, num_classes, pre_act):
         """
         Initialize Bottleneck.
 
@@ -267,6 +312,10 @@ class ResNet(nn.Module):
             The typical value is kernel_size_first=7.
         stride_first: int
             Stride of the first conv layer in the block.
+        use_bn_first: bool
+            Whether to use BN in the first layer.
+        use_act_first: bool
+            Whether to use activation function in the first layer.    
         norm: nn.Module
             The normalization method used in the block.
             Set this to "IdentityNorm" to disable normalization.
@@ -281,24 +330,30 @@ class ResNet(nn.Module):
                 2. "interpolate": use bi-linear interpolation to match the
                    width and height of the feature maps. Copy the resized feature
                    map several times to match the channel size.
+                3. "zero_padding": zero padding to match the channel size.
         bias: bool
-            Whether to used bias in conv layer.
+            Whether to use bias in conv layer.
         use_short_cut: bool
-            Whether to used shortcut connection in the block.
+            Whether to use shortcut connection in the block.
             Set this to False make the block as a simply two-layers conv block.
-        use_maxpool:
-            Whether to used maxpool in the network.
-        num_classes:
+        use_maxpool: bool
+            Whether to use maxpool in the network.
+        num_classes: int
             Number of classes.
+        pre_act: bool
+            Whether to use pre-activation in the ResBlock.
         """
 
         super().__init__()
-
+    
         self.convs = [
             nn.Conv2d(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first, padding=int((kernel_size_first-1)/2), bias=False),
-            nn.BatchNorm2d(hidden_channels),
-            act(),
         ]
+        if use_bn_first:
+            self.convs.append(nn.BatchNorm2d(hidden_channels))
+        if use_act_first:
+            self.convs.append(act())
+            
         if use_maxpool:
             self.convs += [nn.MaxPool2d(kernel_size=3, stride=2, padding=1)]
         expansion = block.expansion
@@ -308,18 +363,18 @@ class ResNet(nn.Module):
             # I have no simple idea to make the code pythonic
             if i == 0:
                 self.convs += ResNet._make_res_part(block, hidden_channels, 1, kernel_size, stride, norm, act,
-                                                    down_sample, bias, use_short_cut, n_blocks)
+                                                    down_sample, bias, use_short_cut, n_blocks, pre_act)
                 if block.expansion == 1:
                     hidden_channels = hidden_channels * stride
             else:          
                 if block.expansion == 4:
                     self.convs += ResNet._make_res_part(block, hidden_channels * 4, 0.5, kernel_size,
-                                                        stride, norm, act, down_sample, bias, use_short_cut, n_blocks)
+                                                        stride, norm, act, down_sample, bias, use_short_cut, n_blocks, pre_act)
                     hidden_channels = hidden_channels * 2
                 else:
                     self.convs += ResNet._make_res_part(block, hidden_channels, 1, kernel_size, stride, norm, act, down_sample,
-                                                        bias, use_short_cut, n_blocks)              
-                    hidden_channels = hidden_channels * stride      
+                                                        bias, use_short_cut, n_blocks, pre_act)              
+                    hidden_channels = hidden_channels * stride
 
         self.convs = nn.Sequential(*self.convs)
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
@@ -334,7 +389,7 @@ class ResNet(nn.Module):
 
     @staticmethod
     def _make_res_part(block, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias,
-                       use_short_cut, n_blocks):
+                       use_short_cut, n_blocks, pre_act):
         """
         Utility function for constructing res part in resnet.
 
@@ -345,7 +400,9 @@ class ResNet(nn.Module):
         in_channels: int
             Number of channels of input tensor.
         channel_span: int
-            Number of channels of hidden tensor.
+            Channel span of input tensor.
+            This is deisgned for unified API of ResBlock and Bottleneck.
+            For ResBlock, set channel_span=1 in general.
         kernel_size: int
             Kernel size of convolution operator.
         stride: int
@@ -365,6 +422,7 @@ class ResNet(nn.Module):
                 2. "interpolate": use bi-linear interpolation to match the
                    width and height of the feature maps. Copy the resized feature
                    map several times to match the channel size.
+                3. "zero_padding": zero padding to match the channel size.
         bias: bool
             Whether to used bias in conv layer.
         use_short_cut: bool
@@ -372,6 +430,8 @@ class ResNet(nn.Module):
             Set this to False make the block as a simply two-layers conv block.
         n_blocks: int
             number of blocks in the part.
+        pre_act: bool
+            Whether to use pre-activation in the ResBlock.
         """
 
         # The first res block is with the specified "stride", and
@@ -380,15 +440,15 @@ class ResNet(nn.Module):
         layers = []
         for i, stride in enumerate(strides):
             if i == 0:
-                layers.append(block(in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut))
+                layers.append(block(in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut, pre_act))
                 if block.expansion == 1:
                     in_channels = int(in_channels * stride * block.expansion)
                 else:
                     in_channels = int(in_channels * block.expansion * channel_span)
             else:
-                layers.append(block(in_channels, 1 / float(block.expansion), kernel_size, stride, norm, act, down_sample, bias, use_short_cut))
-
-            layers.append(act())
+                layers.append(block(in_channels, 1 / float(block.expansion), kernel_size, stride, norm, act, down_sample, bias, use_short_cut, pre_act))
+            if not pre_act:
+                layers.append(act())
 
         return layers
 
@@ -403,9 +463,6 @@ class ResNet(nn.Module):
             block = Bottleneck
         else:
             raise NotImplementedError
-        default_params = {
-            "block": block,
-        }
 
         default_params = {
             "block": block,
@@ -416,13 +473,16 @@ class ResNet(nn.Module):
             "kernel_size": 3,
             "kernel_size_first": 3,
             "stride_first": 1,
+            "use_bn_first": True,
+            "use_act_first": True,
             "norm": norm,
             "act": act,
             "down_sample": "conv",
             "bias": False,
             "use_short_cut": True,
             "use_maxpool": True,
-            "num_classes": 10
+            "num_classes": 10,
+            "pre_act": False,
         }
 
         for key in default_params.keys():
