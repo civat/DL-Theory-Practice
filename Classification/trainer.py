@@ -11,6 +11,7 @@ from ptflops import get_model_complexity_info
 from torchvision import datasets
 
 import resnet
+import widenet
 import utils
 from dataset import DatasetCls
 from utils import load_yaml_file
@@ -19,7 +20,7 @@ from utils import load_yaml_file
 if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
-    parser.add_argument('--config_file', type=str, default="configs/ResNet_32-Layers_CIFAR10_EXP.yaml",
+    parser.add_argument('--config_file', type=str, default="Classification/configs/WideNet_56-Layers_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
@@ -66,6 +67,10 @@ if __name__ == "__main__":
         model_name = "ResNet"
         sub_configs = configs["Model"]["ResNet"]
         model = resnet.ResNet.make_network(sub_configs)
+    elif "WideNet" in configs["Model"]:
+        model_name = "WideNet"
+        sub_configs = configs["Model"]["WideNet"]
+        model = widenet.WideNet.make_network(sub_configs)
     else:
         raise NotImplementedError
 
@@ -156,28 +161,41 @@ if __name__ == "__main__":
 
                 tst_loss = 0.
                 tst_pos = 0.
-                for x, y in tst_loader:
-                    model.eval()
-                    if sub_configs["device"] == "cuda":
-                        x = x.cuda()
-                        y = y.cuda()
+                model.eval()
+                with torch.no_grad():
+                    for x, y in tst_loader:                 
+                        if sub_configs["device"] == "cuda":
+                            x = x.cuda()
+                            y = y.cuda()
 
-                    pred = model(x)
-                    loss = criterion(pred, y)
-                    tst_loss += loss.item() * x.size(0)
-                    tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
+                        pred = model(x)
+                        loss = criterion(pred, y)
+                        tst_loss += loss.item() * x.size(0)
+                        tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
 
-                tst_error = 1 - tst_pos / len(tst_data)
-                tst_loss = tst_loss / len(tst_data)
-                tst_loss_list.append(tst_loss)
-                tst_error_list.append(tst_error)
-                log.logger.info(f"The test loss at {iterations}-th iteration : {tst_loss}")
-                log.logger.info(f"The test error at {iterations}-th iteration: {tst_error}")
+                    tst_error = 1 - tst_pos / len(tst_data)
+                    tst_loss = tst_loss / len(tst_data)
+                    tst_loss_list.append(tst_loss)
+                    tst_error_list.append(tst_error)
+                    log.logger.info(f"The test loss at {iterations}-th iteration : {tst_loss}")
+                    log.logger.info(f"The test error at {iterations}-th iteration: {tst_error}")
 
-                # save best
-                if tst_error < best_error:
-                    best_error = tst_error
-                    best_iter = iterations
+                    # save best
+                    if tst_error < best_error:
+                        best_error = tst_error
+                        best_iter = iterations
+                        state = {
+                            "model": model.state_dict(),
+                            "opt": optimizer.state_dict(),
+                            "iterations": iterations,
+                            "trn_loss": trn_loss_list,
+                            "tst_loss": tst_loss_list,
+                            "trn_error": trn_error_list,
+                            "tst_error": tst_error_list,
+                        }
+                        torch.save(state, os.path.join(output_path, "best.pth"))
+
+                    # save last
                     state = {
                         "model": model.state_dict(),
                         "opt": optimizer.state_dict(),
@@ -185,37 +203,25 @@ if __name__ == "__main__":
                         "trn_loss": trn_loss_list,
                         "tst_loss": tst_loss_list,
                         "trn_error": trn_error_list,
-                        "tst_error": tst_error_list,
+                        "tst_error": tst_error_list
                     }
-                    torch.save(state, os.path.join(output_path, "best.pth"))
+                    if keep_gradients:
+                        state["gradients"] = gradients_dic
+                    torch.save(state, os.path.join(output_path, "last.pth"))
 
-                # save last
-                state = {
-                    "model": model.state_dict(),
-                    "opt": optimizer.state_dict(),
-                    "iterations": iterations,
-                    "trn_loss": trn_loss_list,
-                    "tst_loss": tst_loss_list,
-                    "trn_error": trn_error_list,
-                    "tst_error": tst_error_list
-                }
-                if keep_gradients:
-                    state["gradients"] = gradients_dic
-                torch.save(state, os.path.join(output_path, "last.pth"))
+                    log.logger.info(f"The best iteration at {iterations}-th iteration: {best_iter}")
+                    log.logger.info(f"The best error at {iterations}-th iteration    : {best_error}")
+                    log.logger.info("")
 
-                log.logger.info(f"The best iteration at {iterations}-th iteration: {best_iter}")
-                log.logger.info(f"The best error at {iterations}-th iteration    : {best_error}")
-                log.logger.info("")
-
-                plt.figure(figsize=(20, 8), dpi=80)
-                epoch_list = [i + 1 for i in range(len(trn_loss_list))]
-                plt.plot(epoch_list, trn_error_list, color="red", label="training_error")
-                plt.plot(epoch_list, tst_error_list, color="blue", label="test_error")
-                plt.xlabel(f"iterations x{save_freq}")
-                plt.ylabel("error")
-                plt.legend(loc="upper right")
-                plt.savefig(os.path.join(configs["Train"]["output"], "train_test_curve.jpg"))
-                plt.close()
+                    plt.figure(figsize=(20, 8), dpi=80)
+                    epoch_list = [i + 1 for i in range(len(trn_loss_list))]
+                    plt.plot(epoch_list, trn_error_list, color="red", label="training_error")
+                    plt.plot(epoch_list, tst_error_list, color="blue", label="test_error")
+                    plt.xlabel(f"iterations x{save_freq}")
+                    plt.ylabel("error")
+                    plt.legend(loc="upper right")
+                    plt.savefig(os.path.join(configs["Train"]["output"], "train_test_curve.jpg"))
+                    plt.close()
 
         if iterations == configs["Train"]["iterations"]:
             break
