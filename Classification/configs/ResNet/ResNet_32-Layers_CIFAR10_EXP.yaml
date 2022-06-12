@@ -23,8 +23,8 @@ Model:
     stride_first: 1
     norm: "BatchNorm"
     act: "Relu"
-    down_sample: "zero_padding"
-    bias: False
+    down_sample: "interpolate"
+    bias: True
     use_short_cut: True
     use_maxpool: False
     num_classes: 10

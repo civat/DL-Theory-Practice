@@ -20,7 +20,8 @@ from utils import load_yaml_file
 if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
-    parser.add_argument('--config_file', type=str, default="Classification/configs/WideNet_56-Layers_CIFAR10_EXP.yaml",
+    parser.add_argument('--config_file', type=str,
+                        default="configs/PreActResNet/PreActResNet_110-Layers_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file

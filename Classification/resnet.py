@@ -347,7 +347,7 @@ class ResNet(nn.Module):
         super().__init__()
     
         self.convs = [
-            nn.Conv2d(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first, padding=int((kernel_size_first-1)/2), bias=False),
+            nn.Conv2d(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first, padding=int((kernel_size_first-1)/2), bias=bias),
         ]
         if use_bn_first:
             self.convs.append(nn.BatchNorm2d(hidden_channels))
