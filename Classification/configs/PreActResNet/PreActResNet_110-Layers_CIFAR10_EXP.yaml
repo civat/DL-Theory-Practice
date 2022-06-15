@@ -1,14 +1,15 @@
 Dataset:
   name: "CIFAR10"
-  root_path: "../Datasets"
+  root_path: "Datasets"
   batch_size: 128
-  in_channels: 3
   h: 32
   w: 32
 Argumentation:
-  zero_padding: 4
-  random_horizontal_flip: 0.5
-  random_crop: [32, 32]
+  RandomHorizontalFlip:
+    p: 0.5
+  RandomCrop: 
+    size: [32, 32]
+    padding: 4
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
 Model:
@@ -21,6 +22,8 @@ Model:
     kernel_size: 3
     kernel_size_first: 3
     stride_first: 1
+    use_bn_first: False
+    use_act_first: True
     norm: "BatchNorm"
     act: "Relu"
     down_sample: "interpolate"
@@ -29,15 +32,16 @@ Model:
     use_maxpool: False
     num_classes: 10
     pre_act: True
-    use_bn_first: False
-    use_act_first: False
-    device: "cuda"
+
   OPT:
     SGD:
-      lr: 0.02
+      lr: 0.1
       momentum: 0.9
-      weight_decay: 1e-4
+      weight_decay: 0.0001
   Scheduler:
+    ConstantLR:
+      factor: 0.1
+      total_iters: 400
     MultiStepLR: 
       gamma: 0.1
       milestones: [32000, 48000]
@@ -49,5 +53,6 @@ Model:
 Train:
   iterations: 64000
   save_freq: 500
-  output: "../Output/PreActResNet_110-Layers_CIFAR10_EXP"
-  keep_gradients: True
+  output: "Output/PreActResNet_110-Layers_CIFAR10_EXP"
+  keep_gradients: False
+  device: "cuda"
