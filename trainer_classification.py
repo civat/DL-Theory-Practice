@@ -10,22 +10,21 @@ from torch.utils.data.dataloader import DataLoader
 from ptflops import get_model_complexity_info
 from torchvision import datasets
 
-import resnet
-import widenet
-import utils
-from dataset import DatasetCls
-from utils import load_yaml_file
+from classification import resnet
+from classification import utils
+from classification import widenet
+from classification.dataset import DatasetCls
 
 
 if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
     parser.add_argument('--config_file', type=str,
-                        default="configs/PreActResNet/PreActResNet_110-Layers_CIFAR10_EXP.yaml",
+                        default="classification/configs/ResNet/ResNet_56-Layers_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
-    configs = load_yaml_file(config_file_path)
+    configs = utils.load_yaml_file(config_file_path)
     batch_size = configs["Dataset"]["batch_size"]
 
     output_path = os.path.join(configs["Train"]["output"])
@@ -75,7 +74,8 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
 
-    model = model.cuda() if sub_configs["device"] == "cuda" else model
+    device = configs["Train"]["device"]
+    model = model.cuda() if device == "cuda" else model
 
     if "Init" in configs["Model"]:
         utils.init_nn(model, configs["Model"]["Init"])
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         gradients_dic = defaultdict(list)
         keep_gradients = True
 
-    input_shape = (configs["Dataset"]["in_channels"],
+    input_shape = (sub_configs["in_channels"],
                    configs["Dataset"]["h"],
                    configs["Dataset"]["w"])
     macs, params = get_model_complexity_info(model,
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     log.logger.info('{:<30}  {:<8}'.format('Number of parameters    : ', params))
 
     criterion = nn.CrossEntropyLoss()
-    criterion = criterion.cuda() if sub_configs["device"] == "cuda" else criterion
+    criterion = criterion.cuda() if device == "cuda" else criterion
 
     # Set optimizer
     if "SGD" in configs["Model"]["OPT"]:
@@ -127,7 +127,7 @@ if __name__ == "__main__":
                 break
             model.train()
             optimizer.zero_grad()
-            if sub_configs["device"] == "cuda":
+            if device == "cuda":
                 x = x.cuda()
                 y = y.cuda()
 
@@ -165,7 +165,7 @@ if __name__ == "__main__":
                 model.eval()
                 with torch.no_grad():
                     for x, y in tst_loader:                 
-                        if sub_configs["device"] == "cuda":
+                        if device == "cuda":
                             x = x.cuda()
                             y = y.cuda()
 

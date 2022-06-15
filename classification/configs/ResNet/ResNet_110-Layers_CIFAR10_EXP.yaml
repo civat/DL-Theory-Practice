@@ -1,20 +1,21 @@
 Dataset:
-  name: "CIFAR10"
-  root_path: "../Datasets"
-  batch_size: 128
-  in_channels: 3
+  trn_path: "Datasets/CIFAR-10/train"
+  tst_path: "Datasets/CIFAR-10/test"
+  batch_size: 64
   h: 32
   w: 32
 Argumentation:
-  zero_padding: 4
-  random_horizontal_flip: 0.5
-  random_crop: [32, 32]
+  RandomHorizontalFlip:
+    p: 0.5
+  RandomCrop:
+    size: [32, 32]
+    padding: 4
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
 Model:
   ResNet:
     block: "ResBlock"
-    n_blocks_list: [3, 3, 3]
+    n_blocks_list: [18, 18, 18]
     stride_list: [1, 2, 2]
     in_channels: 3
     hidden_channels: 16
@@ -28,7 +29,6 @@ Model:
     use_short_cut: True
     use_maxpool: False
     num_classes: 10
-    device: "cuda"
   OPT:
     SGD:
       lr: 0.1
@@ -46,5 +46,6 @@ Model:
 Train:
   iterations: 64000
   save_freq: 500
-  output: "../Output/ResNet_20-Layers_CIFAR10_EXP"
+  output: "Output/ResNet_110-Layers_CIFAR10_EXP"
   keep_gradients: True
+  device: "cuda"

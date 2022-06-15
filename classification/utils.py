@@ -1,11 +1,13 @@
 import yaml
+import inspect
 import logging
 import torch.nn as nn
+import torch.optim as opt
 from logging import handlers
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
 
-import resnet
+from classification import resnet
 
 
 def load_yaml_file(file_path):
@@ -40,29 +42,45 @@ def get_activation(act_type):
 
 def get_transformations(argumentation_configs):
     trans = []
-    trans_available = {
-        "zero_padding": transforms.Pad,
-        "random_crop": transforms.RandomCrop,
-        "random_horizontal_flip": transforms.RandomHorizontalFlip,
-    }
+    trans_available = {}
+    for name, method in inspect.getmembers(transforms):
+        if name[0] != "_":
+            trans_available[name] = method
+
     for key in argumentation_configs:
         if key in trans_available.keys():
-            trans.append(trans_available[key](argumentation_configs[key]))
+            trans.append(trans_available[key](**argumentation_configs[key]))
     return trans
 
 
 def get_scheduler(optimizer, scheduler_configs):
     schedulers = []
-    schedulers_available = {
-        "MultiStepLR": lr_scheduler.MultiStepLR,
-        "ConstantLR": lr_scheduler.ConstantLR,
-    }
+    schedulers_available = {}
+    for name, scheduler in inspect.getmembers(lr_scheduler):
+        if name[0] != "_":
+            schedulers_available[name] = scheduler
+
     for key in scheduler_configs.keys():
         schedulers.append(schedulers_available[key](optimizer, **scheduler_configs[key]))
     if len(schedulers) == 0:
         raise NotImplementedError
     schedulers = lr_scheduler.ChainedScheduler(schedulers)
     return schedulers
+
+
+def get_optimizer(params, optimizer_configs):
+    optimizers_available = {}
+    for name, optimizer in inspect.getmembers(opt):
+        if name[0] != "_":
+            optimizers_available[name] = optimizer
+
+    optimizer_name = list(optimizer_configs.keys())
+    if len(optimizer_name) > 1:
+        raise Exception("Not support more than one optimizers!")
+    if len(optimizer_name) == 0:
+        raise Exception("At least one optimizer must be specified!")
+    optimizer_name = optimizer_name[0]
+    return optimizers_available[optimizer_name](params=params, **optimizer_configs[optimizer_name])
 
 
 def init_nn(model, init_configs):

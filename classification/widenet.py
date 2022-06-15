@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-import utils
-import resnet
+from classification import utils
+from classification import resnet
 
 
 class WideBlock(nn.Module):
