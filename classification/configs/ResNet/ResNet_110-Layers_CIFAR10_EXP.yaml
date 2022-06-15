@@ -1,7 +1,7 @@
 Dataset:
-  trn_path: "Datasets/CIFAR-10/train"
-  tst_path: "Datasets/CIFAR-10/test"
-  batch_size: 64
+  name: "CIFAR10"
+  root_path: "Datasets"
+  batch_size: 128
   h: 32
   w: 32
 Argumentation:
