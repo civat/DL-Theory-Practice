@@ -80,7 +80,13 @@ def get_optimizer(params, optimizer_configs):
     if len(optimizer_name) == 0:
         raise Exception("At least one optimizer must be specified!")
     optimizer_name = optimizer_name[0]
-    return optimizers_available[optimizer_name](params=params, **optimizer_configs[optimizer_name])
+    args = optimizer_configs[optimizer_name]
+    for key, value in args.items():
+        try:
+            args[key] = float(value)
+        except Exception:
+            pass
+    return optimizers_available[optimizer_name](params=params, **args)
 
 
 def init_nn(model, init_configs):

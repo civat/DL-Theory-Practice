@@ -2,7 +2,6 @@ import os
 import torch
 import argparse
 import torch.nn as nn
-import torch.optim as opt
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
 from collections import defaultdict
@@ -20,7 +19,7 @@ if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
     parser.add_argument('--config_file', type=str,
-                        default="classification/configs/ResNet/ResNet_56-Layers_CIFAR10_EXP.yaml",
+                        default="classification/configs/PreActResNet/PreActResNet_1001-Layers_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
@@ -44,7 +43,7 @@ if __name__ == "__main__":
     trans = [
         transforms.Resize((configs["Dataset"]["h"], configs["Dataset"]["w"])),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Normalize(mean=mean, std=std)
     ]
     trn_trans = transforms.Compose(train_trans + trans)
     tst_trans = transforms.Compose(trans)
@@ -100,13 +99,7 @@ if __name__ == "__main__":
     criterion = criterion.cuda() if device == "cuda" else criterion
 
     # Set optimizer
-    if "SGD" in configs["Model"]["OPT"]:
-        optimizer = opt.SGD(model.parameters(),
-                            lr=float(configs["Model"]["OPT"]["SGD"]["lr"]),
-                            momentum=configs["Model"]["OPT"]["SGD"]["momentum"],
-                            weight_decay=float(configs["Model"]["OPT"]["SGD"]["weight_decay"]))
-    else:
-        raise NotImplementedError
+    optimizer = utils.get_optimizer(model.parameters(), configs["Model"]["OPT"])
 
     # Set scheduler
     scheduler = None
