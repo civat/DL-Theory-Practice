@@ -12,6 +12,7 @@ from torchvision import datasets
 from classification import resnet
 from classification import utils
 from classification import widenet
+from classification import inception
 from classification.dataset import DatasetCls
 
 
@@ -19,7 +20,7 @@ if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
     parser.add_argument('--config_file', type=str,
-                        default="classification/configs/PreActResNet/PreActResNet_1001-Layers_CIFAR10_EXP.yaml",
+                        default="classification/configs/Inception/InceptionBN_kaimingInit.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
@@ -70,6 +71,14 @@ if __name__ == "__main__":
         model_name = "WideNet"
         sub_configs = configs["Model"]["WideNet"]
         model = widenet.WideNet.make_network(sub_configs)
+    elif "Inception" in configs["Model"]:
+        model_name = "Inception"
+        sub_configs = configs["Model"]["Inception"]
+        model = inception.Inception.make_network(sub_configs)
+    elif "InceptionBN" in configs["Model"]:
+        model_name = "InceptionBN"
+        sub_configs = configs["Model"]["InceptionBN"]
+        model = inception.InceptionBN.make_network(sub_configs)
     else:
         raise NotImplementedError
 

@@ -364,12 +364,12 @@ class ResNet(nn.Module):
         """
 
         super().__init__()
-        self.convs, out_channels = ResNet.make_res_backbone(block, n_blocks_list, stride_list, in_channels,
-                                                            hidden_channels,
-                                                            kernel_size, kernel_size_first, stride_first, use_bn_first,
-                                                            use_act_first, norm, act, down_sample, bias, use_short_cut,
-                                                            use_maxpool,
-                                                            pre_act, dropout, use_out_act)
+        self.convs, out_channels = ResNet.make_backbone(block, n_blocks_list, stride_list, in_channels,
+                                                        hidden_channels,
+                                                        kernel_size, kernel_size_first, stride_first, use_bn_first,
+                                                        use_act_first, norm, act, down_sample, bias, use_short_cut,
+                                                        use_maxpool,
+                                                        pre_act, dropout, use_out_act)
         self.act_last = None if not pre_act else act()
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(out_channels * block.expansion, num_classes)
@@ -455,9 +455,9 @@ class ResNet(nn.Module):
         return layers
 
     @staticmethod
-    def make_res_backbone(block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size,
-                          kernel_size_first, stride_first, use_bn_first, use_act_first, norm, act, down_sample,
-                          bias, use_short_cut, use_maxpool, pre_act, dropout, use_out_act):
+    def make_backbone(block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size,
+                      kernel_size_first, stride_first, use_bn_first, use_act_first, norm, act, down_sample,
+                      bias, use_short_cut, use_maxpool, pre_act, dropout, use_out_act):
         """
         Construct resnet-like backbone.
 
