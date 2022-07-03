@@ -255,7 +255,7 @@ class Bottleneck(nn.Module):
             # shortcut tensor size will be mismatched with the main stream tensor
             if in_channels != out_channels:
                 if down_sample == "conv":
-                    if not act:
+                    if not pre_act:
                         self.shortcut = nn.Sequential(
                             nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
                             norm(out_channels)

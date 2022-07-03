@@ -90,7 +90,6 @@ class Inception(nn.Module):
         1. Inception v1: "Going Deeper with Convolutions";
         2. Inception v2: "Batch Normalization: Accelerating 
            Deep Network Training by Reducing Internal Covariate Shift";
-        3. Inception v3: 
     """
 
     def __init__(self, in_channels, base_channels, kernel_size_first, stride_first, maxpool_first, norm, act, bias,
