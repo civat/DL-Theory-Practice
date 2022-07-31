@@ -13,6 +13,7 @@ from classification import resnet
 from classification import utils
 from classification import widenet
 from classification import inception
+from classification import diracnet
 from classification.dataset import DatasetCls
 
 
@@ -20,7 +21,7 @@ if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
     parser.add_argument('--config_file', type=str,
-                        default="classification/configs/Inception/InceptionBN_kaimingInit.yaml",
+                        default="classification/configs/DiracNet/DiracNet_20-4_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
@@ -79,11 +80,27 @@ if __name__ == "__main__":
         model_name = "InceptionBN"
         sub_configs = configs["Model"]["InceptionBN"]
         model = inception.InceptionBN.make_network(sub_configs)
+    elif "DiracNet" in configs["Model"]:
+        model_name = "DiracNet"
+        sub_configs = configs["Model"]["DiracNet"]
+        model = diracnet.DiracNet.make_network(sub_configs)
     else:
         raise NotImplementedError
 
     device = configs["Train"]["device"]
-    model = model.cuda() if device == "cuda" else model
+    device_id = None
+    if isinstance(device, str):
+        assert device in ["cuda", "cpu"]
+        if device == "cuda":
+            device_id = "cuda:0"
+    elif isinstance(device, list):
+        device_id = f"cuda:{device[0]}"
+        device_ids = list(device)
+        device = "cuda"
+
+    if device == "cuda":
+        model = torch.nn.DataParallel(model, device_ids=device_ids)
+        model = model.to(device_id)
 
     if "Init" in configs["Model"]:
         utils.init_nn(model, configs["Model"]["Init"])
@@ -105,7 +122,7 @@ if __name__ == "__main__":
     log.logger.info('{:<30}  {:<8}'.format('Number of parameters    : ', params))
 
     criterion = nn.CrossEntropyLoss()
-    criterion = criterion.cuda() if device == "cuda" else criterion
+    criterion = criterion.to(device_id) if device == "cuda" else criterion
 
     # Set optimizer
     optimizer = utils.get_optimizer(model.parameters(), configs["Model"]["OPT"])
@@ -130,8 +147,8 @@ if __name__ == "__main__":
             model.train()
             optimizer.zero_grad()
             if device == "cuda":
-                x = x.cuda()
-                y = y.cuda()
+                x = x.to(device_id)
+                y = y.to(device_id)
 
             pred = model(x)
             loss = criterion(pred, y)
@@ -168,8 +185,8 @@ if __name__ == "__main__":
                 with torch.no_grad():
                     for x, y in tst_loader:                 
                         if device == "cuda":
-                            x = x.cuda()
-                            y = y.cuda()
+                            x = x.to(device_id)
+                            y = y.to(device_id)
 
                         pred = model(x)
                         loss = criterion(pred, y)
@@ -228,3 +245,42 @@ if __name__ == "__main__":
 
         if iterations == configs["Train"]["iterations"]:
             break
+    if "deploy" in configs["Train"] and configs["Train"]["deploy"]:
+        for name, layer in model.named_modules():
+            method_list = [func for func in dir(layer) if callable(getattr(layer, func))]
+        if "switch_to_deploy" in method_list:
+            layer.switch_to_deploy()
+
+        input_shape = (sub_configs["in_channels"],
+                       configs["Dataset"]["h"],
+                       configs["Dataset"]["w"])
+        macs_deploy, params_deploy = get_model_complexity_info(model,
+                                                               input_shape,
+                                                               as_strings=True,
+                                                               print_per_layer_stat=True,
+                                                               verbose=True)
+        log.logger.info('{:<30}{:<8}'.format('Computational complexity(original):', macs))
+        log.logger.info('{:<30}{:<8}'.format('Number of parameters(original):', params))
+        log.logger.info('{:<30}{:<8}'.format('Computational complexity(deploy):', macs_deploy))
+        log.logger.info('{:<30}{:<8}'.format('Number of parameters(deploy):', params_deploy))
+
+        tst_loss = 0.
+        tst_pos = 0.
+        model.eval()
+        with torch.no_grad():
+            for x, y in tst_loader:
+                if device == "cuda":
+                    x = x.to(device_id)
+                y = y.to(device_id)
+
+                pred = model(x)
+                loss = criterion(pred, y)
+                tst_loss += loss.item() * x.size(0)
+                tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
+
+                tst_error = 1 - tst_pos / len(tst_data)
+                tst_loss = tst_loss / len(tst_data)
+                tst_loss_list.append(tst_loss)
+                tst_error_list.append(tst_error)
+                log.logger.info(f"The test loss at{iterations}-th iteration:{tst_loss}")
+                log.logger.info(f"The test error at{iterations}-th iteration:{tst_error}")

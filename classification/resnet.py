@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from classification import utils
+from classification import nnblock
 
 
 class Identity(nn.Module):
@@ -50,7 +51,7 @@ class ResBlock(nn.Module):
     expansion = 1
 
     def __init__(self, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut,
-                 pre_act, dropout):
+                 pre_act, dropout, conv=nnblock.Conv2d):
         """
         Initialize ResBlock.
 
@@ -102,11 +103,11 @@ class ResBlock(nn.Module):
         self.use_short_cut = use_short_cut
         if not pre_act:
             self.convs = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
+                conv(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
                 norm(out_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, bias=bias),
+                conv(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, bias=bias),
                 norm(out_channels)
             )
         else:
@@ -114,11 +115,11 @@ class ResBlock(nn.Module):
                 norm(in_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
+                conv(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
                 norm(out_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, bias=bias),
+                conv(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, bias=bias),
             )
 
         if use_short_cut:
@@ -128,12 +129,13 @@ class ResBlock(nn.Module):
                 if down_sample == "conv":
                     if not pre_act:
                         self.shortcut = nn.Sequential(
-                            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
+                            conv(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
                             norm(out_channels)
                         )
                     else:
                         self.shortcut = nn.Sequential(
-                            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
+                            norm(in_channels),
+                            conv(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
                         )
                 elif down_sample == "interpolate":
                     pass  # implemented in "forward" method and do nothing here
@@ -167,7 +169,7 @@ class Bottleneck(nn.Module):
     expansion = 4
 
     def __init__(self, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut,
-                 pre_act, dropout):
+                 pre_act, dropout, conv=nnblock.Conv2d):
         """
         Initialize Bottleneck.
 
@@ -221,16 +223,16 @@ class Bottleneck(nn.Module):
 
         if not act:
             self.convs = nn.Sequential(
-                nn.Conv2d(in_channels, hidden_channels, kernel_size=1, bias=bias),
+                conv(in_channels, hidden_channels, kernel_size=1, bias=bias),
                 norm(hidden_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(hidden_channels, hidden_channels, stride=stride, kernel_size=kernel_size, padding=p,
-                          bias=bias),
+                conv(hidden_channels, hidden_channels, stride=stride, kernel_size=kernel_size, padding=p,
+                     bias=bias),
                 norm(hidden_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(hidden_channels, out_channels, kernel_size=1, bias=bias),
+                conv(hidden_channels, out_channels, kernel_size=1, bias=bias),
                 norm(out_channels),
             )
         else:
@@ -238,16 +240,16 @@ class Bottleneck(nn.Module):
                 norm(in_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(in_channels, hidden_channels, kernel_size=1, bias=bias),
+                conv(in_channels, hidden_channels, kernel_size=1, bias=bias),
                 norm(hidden_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(hidden_channels, hidden_channels, stride=stride, kernel_size=kernel_size, padding=p,
-                          bias=bias),
+                conv(hidden_channels, hidden_channels, stride=stride, kernel_size=kernel_size, padding=p,
+                     bias=bias),
                 norm(hidden_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(hidden_channels, out_channels, kernel_size=1, bias=bias),
+                conv(hidden_channels, out_channels, kernel_size=1, bias=bias),
             )
 
         if use_short_cut:
@@ -257,12 +259,13 @@ class Bottleneck(nn.Module):
                 if down_sample == "conv":
                     if not pre_act:
                         self.shortcut = nn.Sequential(
-                            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
+                            conv(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
                             norm(out_channels)
                         )
                     else:
                         self.shortcut = nn.Sequential(
-                            nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
+                            norm(in_channels),
+                            conv(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
                         )
                 elif down_sample == "interpolate":
                     pass  # implemented in "forward" method and do nothing here
@@ -305,7 +308,7 @@ class ResNet(nn.Module):
 
     def __init__(self, block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size,
                  kernel_size_first, stride_first, use_bn_first, use_act_first, norm, act, down_sample,
-                 bias, use_short_cut, use_maxpool, num_classes, pre_act, dropout, use_out_act):
+                 bias, use_short_cut, use_maxpool, num_classes, pre_act, dropout, use_out_act, conv=nnblock.Conv2d):
         """
         Parameters
         ----------
@@ -369,7 +372,7 @@ class ResNet(nn.Module):
                                                         kernel_size, kernel_size_first, stride_first, use_bn_first,
                                                         use_act_first, norm, act, down_sample, bias, use_short_cut,
                                                         use_maxpool,
-                                                        pre_act, dropout, use_out_act)
+                                                        pre_act, dropout, use_out_act, conv)
         self.act_last = None if not pre_act else act()
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(out_channels * block.expansion, num_classes)
@@ -383,7 +386,7 @@ class ResNet(nn.Module):
 
     @staticmethod
     def _make_res_part(block, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias,
-                       use_short_cut, n_blocks, pre_act, dropout, use_out_act):
+                       use_short_cut, n_blocks, pre_act, dropout, use_out_act, conv=nnblock.Conv2d):
         """
         Utility function for constructing res part in resnet.
 
@@ -440,7 +443,7 @@ class ResNet(nn.Module):
             if i == 0:
                 layers.append(
                     block(in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut,
-                          pre_act, dropout))
+                          pre_act, dropout, conv))
                 if block.expansion == 1:
                     in_channels = int(in_channels * stride * block.expansion)
                 else:
@@ -448,7 +451,7 @@ class ResNet(nn.Module):
             else:
                 layers.append(
                     block(in_channels, 1 / float(block.expansion), kernel_size, stride, norm, act, down_sample, bias,
-                          use_short_cut, pre_act, dropout))
+                          use_short_cut, pre_act, dropout, conv))
             if not pre_act and use_out_act:
                 layers.append(act())
 
@@ -457,7 +460,7 @@ class ResNet(nn.Module):
     @staticmethod
     def make_backbone(block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size,
                       kernel_size_first, stride_first, use_bn_first, use_act_first, norm, act, down_sample,
-                      bias, use_short_cut, use_maxpool, pre_act, dropout, use_out_act):
+                      bias, use_short_cut, use_maxpool, pre_act, dropout, use_out_act, conv=nnblock.Conv2d):
         """
         Construct resnet-like backbone.
 
@@ -523,8 +526,8 @@ class ResNet(nn.Module):
             Channels of the output of the backbone.
         """
         convs = [
-            nn.Conv2d(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first,
-                      padding=int((kernel_size_first - 1) / 2), bias=bias),
+            conv(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first,
+                 padding=int((kernel_size_first - 1) / 2), bias=bias),
         ]
         if use_bn_first:
             convs.append(nn.BatchNorm2d(hidden_channels))
@@ -561,6 +564,7 @@ class ResNet(nn.Module):
 
     @staticmethod
     def make_network(configs):
+        conv = nnblock.get_conv(configs)
         norm = utils.get_norm(configs["norm"])
         act = utils.get_activation(configs["act"])
 
@@ -572,6 +576,7 @@ class ResNet(nn.Module):
             raise NotImplementedError
 
         default_params = {
+            "conv": conv,
             "block": block,
             "n_blocks_list": [2, 2, 2, 2],
             "stride_list": [2, 1, 1, 1],
@@ -595,7 +600,7 @@ class ResNet(nn.Module):
         }
 
         for key in default_params.keys():
-            if key not in ["block", "norm", "act"] and key in configs:
+            if key not in ["conv", "block", "norm", "act"] and key in configs:
                 default_params[key] = configs[key]
 
         return ResNet(**default_params)
