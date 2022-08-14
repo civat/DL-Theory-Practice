@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
+import register
 from classification import utils
 from classification import nnblock
 
@@ -299,6 +300,7 @@ class Bottleneck(nn.Module):
         return x1
 
 
+@register.name_to_model.register("ResNet")
 class ResNet(nn.Module):
     """
     Implementation of the ResNet paper:

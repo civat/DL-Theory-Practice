@@ -9,11 +9,8 @@ from torch.utils.data.dataloader import DataLoader
 from ptflops import get_model_complexity_info
 from torchvision import datasets
 
-from classification import resnet
+import register
 from classification import utils
-from classification import widenet
-from classification import inception
-from classification import diracnet
 from classification.dataset import DatasetCls
 
 
@@ -21,7 +18,7 @@ if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
     parser.add_argument('--config_file', type=str,
-                        default="classification/configs/DiracNet/DiracNet_20-4_CIFAR10_EXP.yaml",
+                        default="classification/configs/WRN/WRN_16-8_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
@@ -60,32 +57,26 @@ if __name__ == "__main__":
         trn_data = DatasetCls(configs["Dataset"]["trn_path"], transforms=trn_trans)
         tst_data = DatasetCls(configs["Dataset"]["tst_path"], transforms=tst_trans)
 
-    trn_loader = DataLoader(trn_data, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=True)
-    tst_loader = DataLoader(tst_data, batch_size=batch_size, shuffle=False, num_workers=1, drop_last=False)
+    num_workers = configs["Dataset"]["num_workers"] if "num_workers" in configs["Dataset"] else 1
+    pin_memory = configs["Dataset"]["pin_memory"] if "pin_memory" in configs["Dataset"] else False
+    trn_loader = DataLoader(trn_data,
+                            batch_size=batch_size,
+                            shuffle=True,
+                            num_workers=num_workers,
+                            drop_last=True,
+                            pin_memory=pin_memory)
+    tst_loader = DataLoader(tst_data,
+                            batch_size=batch_size,
+                            shuffle=False,
+                            num_workers=num_workers,
+                            drop_last=False,
+                            pin_memory=pin_memory)
 
-    # Set model
-    if "ResNet" in configs["Model"]:
-        model_name = "ResNet"
-        sub_configs = configs["Model"]["ResNet"]
-        model = resnet.ResNet.make_network(sub_configs)
-    elif "WideNet" in configs["Model"]:
-        model_name = "WideNet"
-        sub_configs = configs["Model"]["WideNet"]
-        model = widenet.WideNet.make_network(sub_configs)
-    elif "Inception" in configs["Model"]:
-        model_name = "Inception"
-        sub_configs = configs["Model"]["Inception"]
-        model = inception.Inception.make_network(sub_configs)
-    elif "InceptionBN" in configs["Model"]:
-        model_name = "InceptionBN"
-        sub_configs = configs["Model"]["InceptionBN"]
-        model = inception.InceptionBN.make_network(sub_configs)
-    elif "DiracNet" in configs["Model"]:
-        model_name = "DiracNet"
-        sub_configs = configs["Model"]["DiracNet"]
-        model = diracnet.DiracNet.make_network(sub_configs)
-    else:
-        raise NotImplementedError
+    for name in register.name_to_model.keys():
+        if name in configs["Model"]:
+            model_name = name
+            sub_configs = configs["Model"][model_name]
+            model = register.name_to_model[model_name].make_network(sub_configs)
 
     device = configs["Train"]["device"]
     device_id = None
@@ -204,8 +195,12 @@ if __name__ == "__main__":
                     if tst_error < best_error:
                         best_error = tst_error
                         best_iter = iterations
+                        if device == "cuda":
+                            state_dic = model.module.state_dict()
+                        else:
+                            state_dic = model.state_dict()
                         state = {
-                            "model": model.state_dict(),
+                            "model": state_dic,
                             "opt": optimizer.state_dict(),
                             "iterations": iterations,
                             "trn_loss": trn_loss_list,
@@ -216,8 +211,12 @@ if __name__ == "__main__":
                         torch.save(state, os.path.join(output_path, "best.pth"))
 
                     # save last
+                    if device == "cuda":
+                        state_dic = model.module.state_dict()
+                    else:
+                        state_dic = model.state_dict()
                     state = {
-                        "model": model.state_dict(),
+                        "model": state_dic,
                         "opt": optimizer.state_dict(),
                         "iterations": iterations,
                         "trn_loss": trn_loss_list,
@@ -245,6 +244,7 @@ if __name__ == "__main__":
 
         if iterations == configs["Train"]["iterations"]:
             break
+
     if "deploy" in configs["Train"] and configs["Train"]["deploy"]:
         for name, layer in model.named_modules():
             method_list = [func for func in dir(layer) if callable(getattr(layer, func))]

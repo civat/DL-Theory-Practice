@@ -7,7 +7,7 @@ from logging import handlers
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
 
-from classification import resnet
+from classification.models import resnet
 
 
 def load_yaml_file(file_path):

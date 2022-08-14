@@ -8,19 +8,28 @@ import torch.nn.init as init
 class ACBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
-                 padding_mode='zeros', deploy=False,
-                 use_affine=True, reduce_gamma=False, gamma_init=None):
+                 padding_mode='zeros', deploy=False, use_affine=True, reduce_gamma=False, gamma_init=None):
         super(ACBlock, self).__init__()
         self.deploy = deploy
         if deploy:
-            self.fused_conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
-                                        kernel_size=(kernel_size, kernel_size), stride=stride,
-                                        padding=padding, dilation=dilation, groups=groups, bias=True,
+            self.fused_conv = nn.Conv2d(in_channels=in_channels,
+                                        out_channels=out_channels,
+                                        kernel_size=(kernel_size, kernel_size),
+                                        stride=stride,
+                                        padding=padding,
+                                        dilation=dilation,
+                                        groups=groups,
+                                        bias=True,
                                         padding_mode=padding_mode)
         else:
-            self.square_conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
-                                         kernel_size=(kernel_size, kernel_size), stride=stride,
-                                         padding=padding, dilation=dilation, groups=groups, bias=False,
+            self.square_conv = nn.Conv2d(in_channels=in_channels,
+                                         out_channels=out_channels,
+                                         kernel_size=(kernel_size, kernel_size),
+                                         stride=stride,
+                                         padding=padding,
+                                         dilation=dilation,
+                                         groups=groups,
+                                         bias=False,
                                          padding_mode=padding_mode)
             self.square_bn = nn.BatchNorm2d(num_features=out_channels, affine=use_affine)
 
@@ -38,14 +47,24 @@ class ACBlock(nn.Module):
                 hor_padding = [0, padding]
                 ver_padding = [padding, 0]
 
-            self.ver_conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(kernel_size, 1),
+            self.ver_conv = nn.Conv2d(in_channels=in_channels,
+                                      out_channels=out_channels,
+                                      kernel_size=(kernel_size, 1),
                                       stride=stride,
-                                      padding=ver_padding, dilation=dilation, groups=groups, bias=False,
+                                      padding=ver_padding,
+                                      dilation=dilation,
+                                      groups=groups,
+                                      bias=False,
                                       padding_mode=padding_mode)
 
-            self.hor_conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, kernel_size),
+            self.hor_conv = nn.Conv2d(in_channels=in_channels,
+                                      out_channels=out_channels,
+                                      kernel_size=(1, kernel_size),
                                       stride=stride,
-                                      padding=hor_padding, dilation=dilation, groups=groups, bias=False,
+                                      padding=hor_padding,
+                                      dilation=dilation,
+                                      groups=groups,
+                                      bias=False,
                                       padding_mode=padding_mode)
             self.ver_bn = nn.BatchNorm2d(num_features=out_channels, affine=use_affine)
             self.hor_bn = nn.BatchNorm2d(num_features=out_channels, affine=use_affine)
@@ -83,9 +102,12 @@ class ACBlock(nn.Module):
         self.deploy = True
         self.fused_conv = nn.Conv2d(in_channels=self.square_conv.in_channels,
                                     out_channels=self.square_conv.out_channels,
-                                    kernel_size=self.square_conv.kernel_size, stride=self.square_conv.stride,
-                                    padding=self.square_conv.padding, dilation=self.square_conv.dilation,
-                                    groups=self.square_conv.groups, bias=True,
+                                    kernel_size=self.square_conv.kernel_size,
+                                    stride=self.square_conv.stride,
+                                    padding=self.square_conv.padding,
+                                    dilation=self.square_conv.dilation,
+                                    groups=self.square_conv.groups,
+                                    bias=True,
                                     padding_mode=self.square_conv.padding_mode)
         self.__delattr__('square_conv')
         self.__delattr__('square_bn')

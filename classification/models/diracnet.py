@@ -3,6 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.nn.init import dirac_
 
+import register
 from classification import utils
 
 
@@ -68,6 +69,7 @@ class DiracGroup(nn.Module):
         return self.convs(x)
 
 
+@register.name_to_model.register("DiracNet")
 class DiracNet(nn.Module):
 
     def __init__(self, in_channels, kernel_size_first, hidden_channels_first, stride_first, use_norm_first, 

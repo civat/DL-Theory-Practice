@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from classification import utils
-from classification import resnet
+from classification.models import resnet
 
 
 class WideBlock(nn.Module):
@@ -11,8 +11,9 @@ class WideBlock(nn.Module):
                  use_short_cut, n_blocks, pre_act, width):
         super(WideBlock, self).__init__()
         self.blocks = []
-        self.blocks = [nn.ModuleList(resnet.ResNet._make_res_part(resnet.ResBlock, in_channels, 1, kernel_size, stride, norm, act, 
-                                     down_sample, bias, use_short_cut, n_blocks, pre_act) for _ in range(width))]
+        self.blocks = [nn.ModuleList(
+            resnet.ResNet._make_res_part(resnet.ResBlock, in_channels, 1, kernel_size, stride, norm, act,
+                                         down_sample, bias, use_short_cut, n_blocks, pre_act) for _ in range(width))]
         print(self.blocks)
         self.blocks = nn.ModuleList(self.blocks)
 

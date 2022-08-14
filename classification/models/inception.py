@@ -2,6 +2,7 @@ import torch
 import functools
 import torch.nn as nn
 
+import register
 from classification import utils
 
 
@@ -83,6 +84,7 @@ class InceptionBlock(nn.Module):
         return out
 
 
+@register.name_to_model.register("Inception")
 class Inception(nn.Module):
     """
     Implementation of Inception networks.
@@ -192,6 +194,7 @@ class Inception(nn.Module):
         return Inception(**default_params)
 
 
+@register.name_to_model.register("InceptionBN")
 class InceptionBN(Inception):
 
     def __init__(self, in_channels, base_channels, kernel_size_first, stride_first, maxpool_first, norm, act, bias,
