@@ -222,7 +222,7 @@ class Bottleneck(nn.Module):
         hidden_channels = int(in_channels * channel_span)
         out_channels = int(hidden_channels * Bottleneck.expansion)
 
-        if not act:
+        if not pre_act:
             self.convs = nn.Sequential(
                 conv(in_channels, hidden_channels, kernel_size=1, bias=bias),
                 norm(hidden_channels),
