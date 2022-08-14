@@ -248,8 +248,8 @@ if __name__ == "__main__":
     if "deploy" in configs["Train"] and configs["Train"]["deploy"]:
         for name, layer in model.named_modules():
             method_list = [func for func in dir(layer) if callable(getattr(layer, func))]
-        if "switch_to_deploy" in method_list:
-            layer.switch_to_deploy()
+            if "switch_to_deploy" in method_list:
+                layer.switch_to_deploy()
 
         input_shape = (sub_configs["in_channels"],
                        configs["Dataset"]["h"],
@@ -259,10 +259,10 @@ if __name__ == "__main__":
                                                                as_strings=True,
                                                                print_per_layer_stat=True,
                                                                verbose=True)
-        log.logger.info('{:<30}{:<8}'.format('Computational complexity(original):', macs))
-        log.logger.info('{:<30}{:<8}'.format('Number of parameters(original):', params))
-        log.logger.info('{:<30}{:<8}'.format('Computational complexity(deploy):', macs_deploy))
-        log.logger.info('{:<30}{:<8}'.format('Number of parameters(deploy):', params_deploy))
+        log.logger.info('{:<30}{:<8}'.format('Computational complexity (original): ', macs))
+        log.logger.info('{:<30}{:<8}'.format('Number of parameters     (original): ', params))
+        log.logger.info('{:<30}{:<8}'.format('Computational complexity (deploy)  : ', macs_deploy))
+        log.logger.info('{:<30}{:<8}'.format('Number of parameters     (deploy)  : ', params_deploy))
 
         tst_loss = 0.
         tst_pos = 0.
@@ -271,7 +271,7 @@ if __name__ == "__main__":
             for x, y in tst_loader:
                 if device == "cuda":
                     x = x.to(device_id)
-                y = y.to(device_id)
+                    y = y.to(device_id)
 
                 pred = model(x)
                 loss = criterion(pred, y)
@@ -282,5 +282,5 @@ if __name__ == "__main__":
                 tst_loss = tst_loss / len(tst_data)
                 tst_loss_list.append(tst_loss)
                 tst_error_list.append(tst_error)
-                log.logger.info(f"The test loss at{iterations}-th iteration:{tst_loss}")
+                log.logger.info(f"The test loss at{iterations}-th iteration :{tst_loss}")
                 log.logger.info(f"The test error at{iterations}-th iteration:{tst_error}")
