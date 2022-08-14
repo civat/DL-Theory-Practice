@@ -546,19 +546,19 @@ class ResNet(nn.Module):
             if i == 0:
                 convs += ResNet._make_res_part(block, hidden_channels, 1, kernel_size, stride, norm, act,
                                                down_sample, bias, use_short_cut, n_blocks, pre_act, dropout,
-                                               use_out_act)
+                                               use_out_act, conv)
                 if block.expansion == 1:
                     hidden_channels = hidden_channels * stride
             else:
                 if block.expansion == 4:
                     convs += ResNet._make_res_part(block, hidden_channels * 4, 0.5, kernel_size,
                                                    stride, norm, act, down_sample, bias, use_short_cut, n_blocks,
-                                                   pre_act, dropout, use_out_act)
+                                                   pre_act, dropout, use_out_act, conv)
                     hidden_channels = hidden_channels * 2
                 else:
                     convs += ResNet._make_res_part(block, hidden_channels, 1, kernel_size, stride, norm, act,
                                                    down_sample,
-                                                   bias, use_short_cut, n_blocks, pre_act, dropout, use_out_act)
+                                                   bias, use_short_cut, n_blocks, pre_act, dropout, use_out_act, conv)
                     hidden_channels = hidden_channels * stride
 
         convs = nn.Sequential(*convs)
