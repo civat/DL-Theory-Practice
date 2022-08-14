@@ -1,0 +1,63 @@
+Dataset:
+  name: "CIFAR10"
+  root_path: "../workspace/Datasets"
+  batch_size: 128
+  h: 32
+  w: 32
+  num_workers: 4
+  pin_memory: True
+Argumentation:
+  RandomHorizontalFlip:
+    p: 0.5
+  RandomCrop:
+    size: [32, 32]
+    padding: 4
+    padding_mode: "reflect"
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+Model:
+  ResNet:
+    conv: "ACBlock"
+    block: "ResBlock"
+    n_blocks_list: [2, 2, 2]
+    stride_list: [1, 2, 2]
+    in_channels: 3
+    hidden_channels: 128
+    kernel_size: 3
+    kernel_size_first: 3
+    stride_first: 1
+    norm: "BatchNorm"
+    act: "Relu"
+    down_sample: "conv"
+    bias: True
+    use_short_cut: True
+    use_maxpool: False
+    num_classes: 10
+    pre_act: True
+    use_bn_first: True
+    use_act_first: True
+    dropout: .0
+  OPT:
+    SGD:
+      lr: 0.1
+      momentum: 0.9
+      weight_decay: 5e-4
+  Scheduler:
+    ConstantLR:
+      factor: 0.1
+      total_iters: 400
+    MultiStepLR: 
+      gamma: 0.2
+      milestones: [23400, 46800, 62400]
+  Init:
+    kaiming_normal_:
+      mode: "fan_in"
+      nonlinearity: "relu"
+
+Train:
+  iterations: 78000
+  save_freq: 500
+  deploy: True
+  output: "../workspace/Output/Classification/ACNet/ACNet_16-8_CIFAR10_EXP"
+  keep_gradients: False
+  device: [0]

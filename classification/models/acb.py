@@ -8,7 +8,8 @@ import torch.nn.init as init
 class ACBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
-                 padding_mode='zeros', deploy=False, use_affine=True, reduce_gamma=False, gamma_init=None):
+                 padding_mode='zeros', deploy=False, use_affine=True, reduce_gamma=False, gamma_init=None,
+                 bias=True):
         super(ACBlock, self).__init__()
         self.deploy = deploy
         if deploy:
@@ -19,7 +20,7 @@ class ACBlock(nn.Module):
                                         padding=padding,
                                         dilation=dilation,
                                         groups=groups,
-                                        bias=True,
+                                        bias=bias,
                                         padding_mode=padding_mode)
         else:
             self.square_conv = nn.Conv2d(in_channels=in_channels,
@@ -29,7 +30,7 @@ class ACBlock(nn.Module):
                                          padding=padding,
                                          dilation=dilation,
                                          groups=groups,
-                                         bias=False,
+                                         bias=bias,
                                          padding_mode=padding_mode)
             self.square_bn = nn.BatchNorm2d(num_features=out_channels, affine=use_affine)
 
@@ -54,7 +55,7 @@ class ACBlock(nn.Module):
                                       padding=ver_padding,
                                       dilation=dilation,
                                       groups=groups,
-                                      bias=False,
+                                      bias=bias,
                                       padding_mode=padding_mode)
 
             self.hor_conv = nn.Conv2d(in_channels=in_channels,
@@ -64,7 +65,7 @@ class ACBlock(nn.Module):
                                       padding=hor_padding,
                                       dilation=dilation,
                                       groups=groups,
-                                      bias=False,
+                                      bias=bias,
                                       padding_mode=padding_mode)
             self.ver_bn = nn.BatchNorm2d(num_features=out_channels, affine=use_affine)
             self.hor_bn = nn.BatchNorm2d(num_features=out_channels, affine=use_affine)
