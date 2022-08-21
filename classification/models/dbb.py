@@ -139,9 +139,9 @@ class BNAndPadLayer(nn.Module):
 class DiverseBranchBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size,
-                 stride=1, padding=0, dilation=1, groups=1,
-                 internal_channels_1x1_3x3=None,
-                 deploy=False, nonlinear=None, single_init=False):
+                 stride=1, padding=0, dilation=1, groups=1, deploy=False,
+                 internal_channels_1x1_3x3=None, nonlinear=None, single_init=False,
+                 bias=False):
         super(DiverseBranchBlock, self).__init__()
         self.deploy = deploy
 
