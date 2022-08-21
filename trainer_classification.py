@@ -18,7 +18,7 @@ if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
     parser.add_argument('--config_file', type=str,
-                        default="classification/configs/WRN/WRN_16-8_CIFAR10_EXP.yaml",
+                        default="classification/configs/ACNet/ACNet_16-8_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
@@ -88,6 +88,9 @@ if __name__ == "__main__":
         device_id = f"cuda:{device[0]}"
         device_ids = list(device)
         device = "cuda"
+
+    if "snapshot" in configs["Train"]:
+        model.load_state_dict(torch.load(configs["Train"]["snapshot"])["model"])
 
     if device == "cuda":
         model = torch.nn.DataParallel(model, device_ids=device_ids)
@@ -251,6 +254,10 @@ if __name__ == "__main__":
             if "switch_to_deploy" in method_list:
                 layer.switch_to_deploy()
 
+        method_list = [func for func in dir(model) if callable(getattr(model, func))]
+        if "switch_to_deploy" in method_list:
+            model.switch_to_deploy()
+
         input_shape = (sub_configs["in_channels"],
                        configs["Dataset"]["h"],
                        configs["Dataset"]["w"])
@@ -264,23 +271,34 @@ if __name__ == "__main__":
         log.logger.info('{:<30}{:<8}'.format('Computational complexity (deploy)  : ', macs_deploy))
         log.logger.info('{:<30}{:<8}'.format('Number of parameters     (deploy)  : ', params_deploy))
 
-        tst_loss = 0.
-        tst_pos = 0.
-        model.eval()
-        with torch.no_grad():
-            for x, y in tst_loader:
-                if device == "cuda":
-                    x = x.to(device_id)
-                    y = y.to(device_id)
+        if "deploy_test" in configs["Train"] and configs["Train"]["deploy_test"]:
+            tst_loss = 0.
+            tst_pos = 0.
+            model.eval()
+            with torch.no_grad():
+                for x, y in tst_loader:
+                    if device == "cuda":
+                        x = x.to(device_id)
+                        y = y.to(device_id)
 
-                pred = model(x)
-                loss = criterion(pred, y)
-                tst_loss += loss.item() * x.size(0)
-                tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
+                    pred = model(x)
+                    loss = criterion(pred, y)
+                    tst_loss += loss.item() * x.size(0)
+                    tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
 
-            tst_error = 1 - tst_pos / len(tst_data)
-            tst_loss = tst_loss / len(tst_data)
-            tst_loss_list.append(tst_loss)
-            tst_error_list.append(tst_error)
-            log.logger.info(f"The test loss at{iterations}-th iteration :{tst_loss}")
-            log.logger.info(f"The test error at{iterations}-th iteration:{tst_error}")
+                tst_error = 1 - tst_pos / len(tst_data)
+                tst_loss = tst_loss / len(tst_data)
+                tst_loss_list.append(tst_loss)
+                tst_error_list.append(tst_error)
+                log.logger.info(f"The test loss at{iterations}-th iteration :{tst_loss}")
+                log.logger.info(f"The test error at{iterations}-th iteration:{tst_error}")
+
+        # save last
+        if device == "cuda":
+            state_dic = model.module.state_dict()
+        else:
+            state_dic = model.state_dict()
+        state = {
+            "model": state_dic
+        }
+        torch.save(state, os.path.join(output_path, "model_deploy_last.pth"))
