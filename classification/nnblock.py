@@ -1,6 +1,7 @@
 import torch.nn as nn
 from classification.models import acb
 from classification.models import dbb
+from classification.models import repvgg
 
 
 class Conv2d(nn.Module):
@@ -35,5 +36,6 @@ def get_conv(configs):
 convs = {
     "Conv2d": Conv2d,
     "ACBlock": acb.ACBlock,
-    "DBBlock": dbb.DiverseBranchBlock
+    "DBBlock": dbb.DiverseBranchBlock,
+    "RepVGGBlock": repvgg.RepVGGBlock,
 }
