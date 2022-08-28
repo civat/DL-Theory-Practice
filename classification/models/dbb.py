@@ -232,8 +232,6 @@ class DiverseBranchBlock(nn.Module):
                                      padding=self.dbb_origin.conv.padding, dilation=self.dbb_origin.conv.dilation, groups=self.dbb_origin.conv.groups, bias=True)
         self.dbb_reparam.weight.data = kernel
         self.dbb_reparam.bias.data = bias
-        for para in self.parameters():
-            para.detach_()
         self.__delattr__('dbb_origin')
         self.__delattr__('dbb_avg')
         if hasattr(self, 'dbb_1x1'):

@@ -18,7 +18,7 @@ def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
 class RepVGGBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size,
-                 stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', deploy=False, use_se=False):
+                 stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', deploy=False, use_se=False, bias=False):
         super(RepVGGBlock, self).__init__()
         self.deploy = deploy
         self.groups = groups
@@ -130,8 +130,6 @@ class RepVGGBlock(nn.Module):
                                      padding=self.rbr_dense.conv.padding, dilation=self.rbr_dense.conv.dilation, groups=self.rbr_dense.conv.groups, bias=True)
         self.rbr_reparam.weight.data = kernel
         self.rbr_reparam.bias.data = bias
-        for para in self.parameters():
-            para.detach_()
         self.__delattr__('rbr_dense')
         self.__delattr__('rbr_1x1')
         if hasattr(self, 'rbr_identity'):
