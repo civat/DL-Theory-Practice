@@ -18,7 +18,7 @@ if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
     parser.add_argument('--config_file', type=str,
-                        default="classification/configs/DBBNet/RepVGG_16-8_CIFAR10_EXP.yaml",
+                        default="classification/configs/ResNet/ResNet_20-Layers_CIFAR10_EXP.yaml",
                         help="Path of config file.")
 
     config_file_path = parser.parse_args().config_file
@@ -84,6 +84,7 @@ if __name__ == "__main__":
         assert device in ["cuda", "cpu"]
         if device == "cuda":
             device_id = "cuda:0"
+            device_ids = [0]
     elif isinstance(device, list):
         device_id = f"cuda:{device[0]}"
         device_ids = list(device)
