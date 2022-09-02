@@ -26,7 +26,7 @@ Model:
     kernel_size: 3
     kernel_size_first: 3
     stride_first: 1
-    norm: "BatchNorm"
+    norm: "IdentityNorm"
     act: "Relu"
     down_sample: "conv"
     bias: False
@@ -34,7 +34,7 @@ Model:
     use_maxpool: False
     num_classes: 10
     pre_act: False
-    use_bn_first: True
+    use_bn_first: False
     use_act_first: True
     dropout: .0
   OPT:

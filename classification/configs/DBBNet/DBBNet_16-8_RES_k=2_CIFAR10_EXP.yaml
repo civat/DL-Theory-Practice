@@ -35,7 +35,7 @@ Model:
     use_maxpool: False
     num_classes: 10
     pre_act: False
-    use_bn_first: True
+    use_bn_first: False
     use_act_first: True
     dropout: .0
   OPT:
