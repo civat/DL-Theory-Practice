@@ -17,7 +17,7 @@ Argumentation:
   std: [0.229, 0.224, 0.225]
 Model:
   ResNet:
-    conv: "DBBlock"
+    conv: "ACBlock"
     block: "ResBlock"
     n_blocks_list: [6, 6, 6]
     stride_list: [1, 2, 2]
@@ -29,11 +29,11 @@ Model:
     norm: "BatchNorm"
     act: "Relu"
     down_sample: "conv"
-    bias: False
-    use_short_cut: False
+    bias: True
+    use_short_cut: True
     use_maxpool: False
     num_classes: 10
-    pre_act: False
+    pre_act: True
     use_bn_first: True
     use_act_first: True
     dropout: .0
@@ -58,7 +58,6 @@ Train:
   iterations: 78000
   save_freq: 500
   deploy: True
-  deploy_test: True
-  output: "../workspace/Output/Classification/DBBNet/DBBNet_40-4_CIFAR10_EXP"
+  output: "../workspace/Output/Classification/ACNet/ACNet_40-4_CIFAR10_EXP"
   keep_gradients: False
   device: [0]

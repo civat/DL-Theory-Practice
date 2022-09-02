@@ -3,13 +3,14 @@
 import functools
 import torch.nn as nn
 import torch.nn.init as init
+from classification.nnblock import ConvGroup
 
 
 class ACBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
-                 padding_mode='zeros', deploy=False, use_affine=True, reduce_gamma=False, gamma_init=None,
-                 bias=True):
+                 bias=True,padding_mode='zeros', deploy=False, use_affine=True, reduce_gamma=False,
+                 gamma_init=None):
         super(ACBlock, self).__init__()
         self.deploy = deploy
         if deploy:
@@ -131,6 +132,11 @@ class ACBlock(nn.Module):
         init.constant_(self.hor_bn.weight, 0.0)
         print('init gamma of square as 1, ver and hor as 0')
 
+    def get_params(self):
+        if not self.deploy:
+            raise Exception("The model is not in deploy mode!")
+        return self.fused_conv.weight.data, self.fused_conv.bias.data
+
     def forward(self, input):
         if self.deploy:
             return self.fused_conv(input)
@@ -152,6 +158,7 @@ class ACBlock(nn.Module):
 
     @staticmethod
     def get_conv(configs):
+        k = configs["k"] if "k" in configs.keys() else 1
         default_params = {
             "use_affine": True,
             "reduce_gamma": False,
@@ -162,4 +169,5 @@ class ACBlock(nn.Module):
                 default_params[key] = configs[key]
 
         conv = functools.partial(ACBlock, **default_params)
+        conv = functools.partial(ConvGroup, conv=conv, k=k)
         return conv

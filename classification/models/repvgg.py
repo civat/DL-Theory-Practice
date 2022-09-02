@@ -5,6 +5,7 @@ import torch.nn as nn
 import functools
 import numpy as np
 from classification.models.se import SEBlock
+from classification.nnblock import ConvGroup
 
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
@@ -18,7 +19,7 @@ def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
 class RepVGGBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size,
-                 stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', deploy=False, use_se=False, bias=False):
+                 stride=1, padding=0, dilation=1, groups=1, bias=False, padding_mode='zeros', deploy=False, use_se=False):
         super(RepVGGBlock, self).__init__()
         self.deploy = deploy
         self.groups = groups
@@ -138,8 +139,14 @@ class RepVGGBlock(nn.Module):
             self.__delattr__('id_tensor')
         self.deploy = True
 
+    def get_params(self):
+        if not self.deploy:
+            raise Exception("The model is not in deploy mode!")
+        return self.rbr_reparam.weight.data, self.rbr_reparam.bias.data
+
     @staticmethod
     def get_conv(configs):
+        k = configs["k"] if "k" in configs.keys() else 1
         default_params = {
             "use_se": False,
         }
@@ -148,4 +155,5 @@ class RepVGGBlock(nn.Module):
                 default_params[key] = configs[key]
 
         conv = functools.partial(RepVGGBlock, **default_params)
+        conv = functools.partial(ConvGroup, conv=conv, k=k)
         return conv

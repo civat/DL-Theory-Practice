@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import register
 from classification import utils
 from classification import nnblock
+from classification.models import tools
 
 
 class Identity(nn.Module):
@@ -566,7 +567,7 @@ class ResNet(nn.Module):
 
     @staticmethod
     def make_network(configs):
-        conv = nnblock.get_conv(configs)
+        conv = tools.get_conv(configs)
         norm = utils.get_norm(configs["norm"])
         act = utils.get_activation(configs["act"])
 

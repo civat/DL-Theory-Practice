@@ -19,18 +19,19 @@ Model:
   ResNet:
     conv: "DBBlock"
     block: "ResBlock"
-    n_blocks_list: [6, 6, 6]
+    k: 2
+    n_blocks_list: [2, 2, 2]
     stride_list: [1, 2, 2]
     in_channels: 3
-    hidden_channels: 64
+    hidden_channels: 128
     kernel_size: 3
     kernel_size_first: 3
     stride_first: 1
-    norm: "BatchNorm"
+    norm: "IdentityNorm"
     act: "Relu"
     down_sample: "conv"
     bias: False
-    use_short_cut: False
+    use_short_cut: True
     use_maxpool: False
     num_classes: 10
     pre_act: False
@@ -59,6 +60,6 @@ Train:
   save_freq: 500
   deploy: True
   deploy_test: True
-  output: "../workspace/Output/Classification/DBBNet/DBBNet_40-4_CIFAR10_EXP"
+  output: "../workspace/Output/Classification/DBBNet/DBBNet_16-8_RES_k=2_CIFAR10_EXP"
   keep_gradients: False
   device: [0]

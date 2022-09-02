@@ -6,6 +6,8 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
+from classification.nnblock import ConvGroup
+
 
 def transI_fusebn(kernel, bn):
     gamma = bn.weight
@@ -139,9 +141,10 @@ class BNAndPadLayer(nn.Module):
 class DiverseBranchBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size,
-                 stride=1, padding=0, dilation=1, groups=1, deploy=False,
-                 internal_channels_1x1_3x3=None, nonlinear=None, single_init=False,
-                 bias=False):
+                 stride=1, padding=0, dilation=1, groups=1, bias=False,
+                 padding_mode='zeros', deploy=False, internal_channels_1x1_3x3=None,
+                 nonlinear=None, single_init=False
+                 ):
         super(DiverseBranchBlock, self).__init__()
         self.deploy = deploy
 
@@ -238,6 +241,11 @@ class DiverseBranchBlock(nn.Module):
             self.__delattr__('dbb_1x1')
         self.__delattr__('dbb_1x1_kxk')
 
+    def get_params(self):
+        if not self.deploy:
+            raise Exception("The model is not in deploy mode!")
+        return self.dbb_reparam.weight.data, self.dbb_reparam.bias.data
+
     def forward(self, inputs):
 
         if hasattr(self, 'dbb_reparam'):
@@ -267,6 +275,7 @@ class DiverseBranchBlock(nn.Module):
 
     @staticmethod
     def get_conv(configs):
+        k = configs["k"] if "k" in configs.keys() else 1
         default_params = {
             "internal_channels_1x1_3x3": None,
             "nonlinear": None,
@@ -277,4 +286,5 @@ class DiverseBranchBlock(nn.Module):
                 default_params[key] = configs[key]
 
         conv = functools.partial(DiverseBranchBlock, **default_params)
+        conv = functools.partial(ConvGroup, conv=conv, k=k)
         return conv

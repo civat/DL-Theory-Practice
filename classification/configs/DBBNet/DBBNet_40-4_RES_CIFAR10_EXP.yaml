@@ -22,7 +22,7 @@ Model:
     n_blocks_list: [6, 6, 6]
     stride_list: [1, 2, 2]
     in_channels: 3
-    hidden_channels: 128
+    hidden_channels: 64
     kernel_size: 3
     kernel_size_first: 3
     stride_first: 1
