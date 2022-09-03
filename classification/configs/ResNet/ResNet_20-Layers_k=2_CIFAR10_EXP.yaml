@@ -45,9 +45,11 @@ Model:
       nonlinearity: "relu"
 
 Train:
-  iterations: 64000
-  save_freq: 500
+  iterations: 1
+  save_freq: 1
+  deploy: True
+  deploy_test: True
   output: "../workspace/ResNet/ResNet_20-Layers_k=2_CIFAR10_EXP"
-  keep_gradients: True
+  keep_gradients: False
   device: "cuda"
 

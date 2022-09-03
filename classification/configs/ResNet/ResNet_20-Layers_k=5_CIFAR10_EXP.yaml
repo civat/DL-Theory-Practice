@@ -47,7 +47,9 @@ Model:
 Train:
   iterations: 64000
   save_freq: 500
+  deploy: True
+  deploy_test: True
   output: "../workspace/ResNet/ResNet_20-Layers_k=5_CIFAR10_EXP"
-  keep_gradients: True
+  keep_gradients: False
   device: "cuda"
 

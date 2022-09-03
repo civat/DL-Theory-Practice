@@ -35,11 +35,18 @@ class ConvGroup(nn.Module):
         self.deploy = True
         self.fused_conv = nn.Conv2d(self.in_channels, self.out_channels, self.kernel_size, self.stride,
                                     self.padding, self.dilation, self.groups, self.bias, self.padding_mode)
+        params, biases = [], []
         for conv in self.convs:
             conv.switch_to_deploy()
-            param, bias = conv.get_param()
-            self.fused_conv.weight.data += param
-            self.fused_conv.bias += bias
+            param, bias = conv.get_params()
+            params.append(param)
+            biases.append(bias)
+        param = sum(params)
+        bias = sum(biases)
+
+        self.fused_conv.to(param.device)
+        self.fused_conv.weight.data = param
+        self.fused_conv.bias.data = bias
         self.__delattr__('convs')
 
 
