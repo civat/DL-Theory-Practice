@@ -2,6 +2,7 @@ from classification import nnblock
 from classification.models import acb
 from classification.models import dbb
 from classification.models import repvgg
+from classification.models import mobile_one
 
 
 def get_conv(configs):
@@ -17,4 +18,5 @@ convs = {
     "ACBlock": acb.ACBlock,
     "DBBlock": dbb.DiverseBranchBlock,
     "RepVGGBlock": repvgg.RepVGGBlock,
+    "MobileOneBlock": mobile_one.MobileOneBlock
 }

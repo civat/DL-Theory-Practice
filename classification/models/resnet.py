@@ -529,8 +529,10 @@ class ResNet(nn.Module):
             Channels of the output of the backbone.
         """
         convs = [
-            conv(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first,
-                 padding=int((kernel_size_first - 1) / 2), bias=bias),
+            # conv(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first,
+            #      padding=int((kernel_size_first - 1) / 2), bias=bias),
+            nn.Conv2d(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first,
+                      padding=int((kernel_size_first - 1) / 2), bias=bias),
         ]
         if use_bn_first:
             convs.append(nn.BatchNorm2d(hidden_channels))
