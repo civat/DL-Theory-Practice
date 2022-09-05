@@ -77,6 +77,4 @@ class Conv2d(nn.Module):
 
     @staticmethod
     def get_conv(configs):
-        k = configs["k"] if "k" in configs.keys() else 1
-        conv_group = functools.partial(ConvGroup, conv=Conv2d, k=k)
-        return conv_group
+        return Conv2d
