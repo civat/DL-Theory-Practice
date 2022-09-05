@@ -3,7 +3,6 @@
 import functools
 import torch.nn as nn
 import torch.nn.init as init
-from classification.nnblock import ConvGroup
 
 
 class ACBlock(nn.Module):
@@ -169,5 +168,4 @@ class ACBlock(nn.Module):
                 default_params[key] = configs[key]
 
         conv = functools.partial(ACBlock, **default_params)
-        conv = functools.partial(ConvGroup, conv=conv, k=k)
         return conv

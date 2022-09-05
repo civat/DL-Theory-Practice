@@ -55,6 +55,7 @@ Train:
   iterations: 78000
   save_freq: 500
   deploy: True
+  deploy_test: True
   output: "../workspace/Output/Classification/MobileOne/MobileOne_20_CIFAR10_EXP"
   keep_gradients: False
   device: [0]

@@ -13,7 +13,6 @@ import register
 from classification import utils
 from classification.dataset import DatasetCls
 
-
 if __name__ == "__main__":
     print(f"The current path is: {os.getcwd()}")
     parser = argparse.ArgumentParser(description="Trainer for classification task.")

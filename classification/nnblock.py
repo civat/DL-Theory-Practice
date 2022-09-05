@@ -9,6 +9,7 @@ class ConvGroup(nn.Module):
                  padding_mode="zeros", conv=None, deploy=False, k=1):
         super(ConvGroup, self).__init__()
         self.deploy = deploy
+        self.k = k
         self.convs = nn.ModuleList([
             conv(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias, padding_mode)
             for _ in range(k)
@@ -24,7 +25,7 @@ class ConvGroup(nn.Module):
         self.padding_mode = padding_mode
 
     def forward(self, x):
-        if not self.deploy:
+        if not self.deploy or self.k == 1:
             output = [conv(x) for conv in self.convs]
             output = sum(output)
         else:
@@ -33,21 +34,26 @@ class ConvGroup(nn.Module):
 
     def switch_to_deploy(self):
         self.deploy = True
-        self.fused_conv = nn.Conv2d(self.in_channels, self.out_channels, self.kernel_size, self.stride,
-                                    self.padding, self.dilation, self.groups, self.bias, self.padding_mode)
-        params, biases = [], []
-        for conv in self.convs:
-            conv.switch_to_deploy()
-            param, bias = conv.get_params()
-            params.append(param)
-            biases.append(bias)
-        param = sum(params)
-        bias = sum(biases)
 
-        self.fused_conv.to(param.device)
-        self.fused_conv.weight.data = param
-        self.fused_conv.bias.data = bias
-        self.__delattr__('convs')
+        if self.k == 1:
+            for conv in self.convs:
+                conv.switch_to_deploy()
+        else:
+            self.fused_conv = nn.Conv2d(self.in_channels, self.out_channels, self.kernel_size, self.stride,
+                                        self.padding, self.dilation, self.groups, self.bias, self.padding_mode)
+            params, biases = [], []
+            for conv in self.convs:
+                conv.switch_to_deploy()
+                param, bias = conv.get_params()
+                params.append(param)
+                biases.append(bias)
+            param = sum(params)
+            bias = sum(biases)
+
+            self.fused_conv.to(param.device)
+            self.fused_conv.weight.data = param
+            self.fused_conv.bias.data = bias
+            self.__delattr__('convs')
 
 
 class Conv2d(nn.Module):
@@ -74,4 +80,3 @@ class Conv2d(nn.Module):
         k = configs["k"] if "k" in configs.keys() else 1
         conv_group = functools.partial(ConvGroup, conv=Conv2d, k=k)
         return conv_group
-

@@ -6,8 +6,6 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-from classification.nnblock import ConvGroup
-
 
 def transI_fusebn(kernel, bn):
     gamma = bn.weight
@@ -286,5 +284,4 @@ class DiverseBranchBlock(nn.Module):
                 default_params[key] = configs[key]
 
         conv = functools.partial(DiverseBranchBlock, **default_params)
-        conv = functools.partial(ConvGroup, conv=conv, k=k)
         return conv

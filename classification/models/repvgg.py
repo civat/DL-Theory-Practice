@@ -5,7 +5,6 @@ import torch.nn as nn
 import functools
 import numpy as np
 from classification.models.se import SEBlock
-from classification.nnblock import ConvGroup
 
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
@@ -155,5 +154,4 @@ class RepVGGBlock(nn.Module):
                 default_params[key] = configs[key]
 
         conv = functools.partial(RepVGGBlock, **default_params)
-        conv = functools.partial(ConvGroup, conv=conv, k=k)
         return conv

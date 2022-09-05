@@ -1,7 +1,6 @@
 import torch.nn as nn
 import functools
 from torch.nn.init import dirac_
-from classification.nnblock import ConvGroup
 from classification.models.dbb import conv_bn
 from classification.models.dbb import transI_fusebn
 
@@ -20,13 +19,15 @@ class MobileOneBlockDP(nn.Module):
             k = kernel_size
             g = in_channels
             p = padding
+            s = stride
         else:
             k = 1
             g = 1
             p = 0
+            s = 1
 
         self.convs = nn.ModuleList([
-            conv_bn(in_channels, out_channels, k, stride, padding=p, dilation=dilation,
+            conv_bn(in_channels, out_channels, kernel_size=k, stride=s, padding=p, dilation=dilation,
                     groups=g, padding_mode=padding_mode) for _ in range(r)
         ])
 
@@ -35,7 +36,7 @@ class MobileOneBlockDP(nn.Module):
             self.conv_1x1 = conv_bn(in_channels, out_channels, (1, 1), stride, dilation=dilation, padding_mode=padding_mode)
 
         # BN branch
-        self.delta = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, dilation,
+        self.delta = nn.Conv2d(in_channels, out_channels, kernel_size=k, stride=s, padding=p, dilation=dilation,
                                padding_mode=padding_mode, bias=False)
         dirac_(self.delta.weight)
         self.delta.requires_grad_(False)
@@ -55,11 +56,15 @@ class MobileOneBlockDP(nn.Module):
                 return output_middle + output_bn
 
         else:
-            return self.fused_conv(x)
+            x = self.conv_fused(x)
+            return x
 
     def switch_to_deploy(self):
+        if self.deploy:
+            return
         self.deploy = True
         conv = self.convs[0].conv
+
         self.conv_fused = nn.Conv2d(in_channels=conv.in_channels,
                                     out_channels=conv.out_channels,
                                     kernel_size=conv.kernel_size,
@@ -72,7 +77,7 @@ class MobileOneBlockDP(nn.Module):
         # first fuse each Conv and BN
         weight_m, biase_m = [], []
         for i in range(len(self.convs)):
-            w, b = transI_fusebn(self.convs[i].conv, self.convs[i].bn)
+            w, b = transI_fusebn(self.convs[i].conv.weight, self.convs[i].bn)
             weight_m.append(w)
             biase_m.append(b)
         weights_m = sum(weight_m)
@@ -80,10 +85,10 @@ class MobileOneBlockDP(nn.Module):
 
         if self.convs == "D":
             # fuse the 1x1 branch
-            weight_1x1, bias_1x1 = transI_fusebn(self.conv_1x1.conv, self.conv_1x1.bn)
+            weight_1x1, bias_1x1 = transI_fusebn(self.conv_1x1.conv.weight, self.conv_1x1.bn)
 
         # fuse the BN branch
-        weight_bn, bias_bn = transI_fusebn(self.delta, self.bn)
+        weight_bn, bias_bn = transI_fusebn(self.delta.weight, self.bn)
 
         if self.convs == "D":
             weight = weights_m + weight_1x1 + weight_bn
@@ -97,7 +102,7 @@ class MobileOneBlockDP(nn.Module):
         self.__delattr__('convs')
         self.__delattr__('delta')
         self.__delattr__('bn')
-        if self.convs == "D":
+        if self.conv_type == "D":
             self.__delattr__('conv_1x1')
 
 
@@ -107,9 +112,9 @@ class MobileOneBlock(nn.Module):
                  stride=1, padding=0, dilation=1, groups=None, bias=None, padding_mode='zeros', deploy=False, r=1):
         super(MobileOneBlock, self).__init__()
         self.deploy = deploy
-        self.conv_d = MobileOneBlockDP(in_channels, out_channels, kernel_size, stride, padding, dilation, padding_mode,
+        self.conv_d = MobileOneBlockDP(in_channels, in_channels, kernel_size, stride, padding, dilation, padding_mode,
                                        r=r, conv_type="D")
-        self.conv_p = MobileOneBlockDP(out_channels, out_channels, kernel_size, stride, padding, dilation, padding_mode,
+        self.conv_p = MobileOneBlockDP(in_channels, out_channels, kernel_size, stride, padding, dilation, padding_mode,
                                        r=r, conv_type="P")
 
     def forward(self, x):
@@ -135,5 +140,4 @@ class MobileOneBlock(nn.Module):
                 default_params[key] = configs[key]
 
         conv = functools.partial(MobileOneBlock, **default_params)
-        conv = functools.partial(ConvGroup, conv=conv, k=k)
         return conv
