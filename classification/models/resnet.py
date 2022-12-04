@@ -56,6 +56,10 @@ class ResBlock(nn.Module):
                  pre_act, dropout, conv=nnblock.Conv2d):
         """
         Initialize ResBlock.
+        This is a generalized building block as we can implement
+        different classic block use different arguments.
+        For example, we can implement the plain network by setting
+        use_short_cut=False.
 
         Parameters
         ----------
@@ -94,6 +98,8 @@ class ResBlock(nn.Module):
           Whether to use pre-activation in the ResBlock.
         dropout: float
           Dropout rate.
+        conv: nn.Module
+          Type of Convolution. See classification/models/tools.py for possible conv type.
         """
         super(ResBlock, self).__init__()
 
@@ -165,6 +171,10 @@ class ResBlock(nn.Module):
                 x1 += x
 
         return x1
+
+
+class ResBlockTranspose(nn.Module):
+    pass
 
 
 class Bottleneck(nn.Module):
