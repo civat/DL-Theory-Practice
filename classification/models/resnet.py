@@ -173,10 +173,6 @@ class ResBlock(nn.Module):
         return x1
 
 
-class ResBlockTranspose(nn.Module):
-    pass
-
-
 class Bottleneck(nn.Module):
     expansion = 4
 
@@ -386,6 +382,9 @@ class ResNet(nn.Module):
                                                         use_act_first, norm, act, down_sample, bias, use_short_cut,
                                                         use_maxpool,
                                                         pre_act, dropout, use_out_act, conv)
+        # For binary classification task, we use BCE loss so only one output logit is needed.
+        if num_classes == 2:
+            num_classes = 1
         self.act_last = None if not pre_act else act()
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(out_channels * block.expansion, num_classes)
@@ -446,6 +445,11 @@ class ResNet(nn.Module):
           Dropout rate.
         use_out_act: bool
           Whether to use activation on the output of ResBlock.
+
+        Return
+        ------
+        layers: list(Block)
+          A list of Blocks.
         """
 
         # The first res block is with the specified "stride", and
@@ -539,8 +543,6 @@ class ResNet(nn.Module):
             Channels of the output of the backbone.
         """
         convs = [
-            # conv(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first,
-            #      padding=int((kernel_size_first - 1) / 2), bias=bias),
             nn.Conv2d(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first,
                       padding=int((kernel_size_first - 1) / 2), bias=bias),
         ]
@@ -548,13 +550,12 @@ class ResNet(nn.Module):
             convs.append(nn.BatchNorm2d(hidden_channels))
         if use_act_first:
             convs.append(act())
-
         if use_maxpool:
             convs += [nn.MaxPool2d(kernel_size=3, stride=2, padding=1)]
         expansion = block.expansion
 
         for i, (n_blocks, stride) in enumerate(zip(n_blocks_list, stride_list)):
-            # For the first part, stride=1 and channel_span=1
+            # For the first part, channel_span=1
             # I have no simple idea to make the code pythonic
             if i == 0:
                 convs += ResNet._make_res_part(block, hidden_channels, 1, kernel_size, stride, norm, act,
