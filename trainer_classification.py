@@ -14,31 +14,40 @@ from classification import utils
 from classification.dataset import DatasetCls
 
 if __name__ == "__main__":
+    # Kindly print the current path of your env.
+    # So you can quickly find the config file path error when it occurs.
     print(f"The current path is: {os.getcwd()}")
+
+    # Load configs
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
     parser.add_argument('--config_file', type=str,
                         default="classification/configs/MobileOne/MobileOne_20_CIFAR10_EXP.yaml",
                         help="Path of config file.")
-
     config_file_path = parser.parse_args().config_file
     configs = utils.load_yaml_file(config_file_path)
-    batch_size = configs["Dataset"]["batch_size"]
 
+    # Create output dict if it does not exist
     output_path = os.path.join(configs["Train"]["output"])
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
+    # This is logger. All training info will be stored in it.
     log = utils.Logger(os.path.join(output_path, "train.log"))
 
-    # transformations
+    # Construct argumentation methods.
+    # You can use any argumentation methods supported by PyTorch
+    # simply setting the tag "Argumentation" in the config file.
+    # See config files in the "classification/configs" dict for example.
     train_trans = []
     if "Argumentation" in configs:
         train_trans = utils.get_transformations(configs["Argumentation"])
         if "mean" in configs["Argumentation"] and "std" in configs["Argumentation"]:
             mean, std = configs["Argumentation"]["mean"], configs["Argumentation"]["std"]
         else:
+            # If mean OR std is not specified, we use the default values from ImageNet
             mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
     trans = [
+        # You need to specify the image size by setting "h" and "w" in the config file
         transforms.Resize((configs["Dataset"]["h"], configs["Dataset"]["w"])),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
@@ -46,6 +55,9 @@ if __name__ == "__main__":
     trn_trans = transforms.Compose(train_trans + trans)
     tst_trans = transforms.Compose(trans)
 
+    # Set your dataset. There are two ways to do this.
+    # First, you can use the dataset name in the config file (now only CIFAR10 is included).
+    # Second, you can set the training data path and test data path explicitly.
     if "name" in configs["Dataset"]:
         if configs["Dataset"]["name"] == "CIFAR10":
             trn_data = datasets.CIFAR10(root=configs["Dataset"]["root_path"], train=True, transform=trn_trans, download=True)
@@ -56,8 +68,10 @@ if __name__ == "__main__":
         trn_data = DatasetCls(configs["Dataset"]["trn_path"], transforms=trn_trans)
         tst_data = DatasetCls(configs["Dataset"]["tst_path"], transforms=tst_trans)
 
+    # Construct the dataloader
     num_workers = configs["Dataset"]["num_workers"] if "num_workers" in configs["Dataset"] else 1
     pin_memory = configs["Dataset"]["pin_memory"] if "pin_memory" in configs["Dataset"] else False
+    batch_size = configs["Dataset"]["batch_size"]
     trn_loader = DataLoader(trn_data,
                             batch_size=batch_size,
                             shuffle=True,
@@ -71,12 +85,18 @@ if __name__ == "__main__":
                             drop_last=False,
                             pin_memory=pin_memory)
 
-    for name in register.name_to_model.keys():
-        if name in configs["Model"]:
-            model_name = name
-            sub_configs = configs["Model"][model_name]
-            model = register.name_to_model[model_name].make_network(sub_configs)
+    # Construct the model.
+    # The Register can automatically load corresponding model
+    # using the model name once it was registered in the class definition.
+    # Each model class (under "classification/models") defines its own "make_network" method to parse the args.
+    # So you can see the model's "make_network" method to find out the valid args for the model.
+    model, model_configs = register.make_network(configs["Model"])
 
+    # Infer the device used for training.
+    # The simplest way to set the value is:
+    # 1) set to "cpu" if cpu is used;
+    # 2) set to a list of IDs (int) if GPUs are used.
+    # E.g. you can set to [0] is only one GPU is used.
     device = configs["Train"]["device"]
     device_id = None
     if isinstance(device, str):
@@ -89,22 +109,33 @@ if __name__ == "__main__":
         device_ids = list(device)
         device = "cuda"
 
+    # Load a pre-trained model if "snapshot" is specified
     if "snapshot" in configs["Train"]:
         model.load_state_dict(torch.load(configs["Train"]["snapshot"])["model"])
 
+    # Set multi-GPU mode if more than one GPU used.
     if device == "cuda":
         model = torch.nn.DataParallel(model, device_ids=device_ids)
         model = model.to(device_id)
 
+    # Set the model initialization method.
+    # You can use any initialization methods supported by PyTorch
+    # simply setting the tag "Init" in the config file.
+    # See config files in the "classification/configs" dict for example.
     if "Init" in configs["Model"]:
         utils.init_nn(model, configs["Model"]["Init"])
 
+    # If specified, save the L2 norm of gradients at each layer
+    # into the output model file for further analysis.
     keep_gradients = False
     if "keep_gradients" in configs["Train"] and configs["Train"]["keep_gradients"] is True:
         gradients_dic = defaultdict(list)
         keep_gradients = True
 
-    input_shape = (sub_configs["in_channels"],
+    # Calculate the model compexity.
+    # The current method is based on the ptflops.
+    # But I found that it cannot get correct results when multi-GPUs are used.
+    input_shape = (model_configs["in_channels"],
                    configs["Dataset"]["h"],
                    configs["Dataset"]["w"])
     macs, params = get_model_complexity_info(model,
@@ -115,23 +146,33 @@ if __name__ == "__main__":
     log.logger.info('{:<30}  {:<8}'.format('Computational complexity: ', macs))
     log.logger.info('{:<30}  {:<8}'.format('Number of parameters    : ', params))
 
-    criterion = nn.CrossEntropyLoss()
+    # Set loss function
+    num_classes = model_configs["num_classes"]
+    if num_classes == 2:
+        criterion = nn.BCEWithLogitsLoss()
+    else:
+        criterion = nn.CrossEntropyLoss()
     criterion = criterion.to(device_id) if device == "cuda" else criterion
 
-    # Set optimizer
+    # Set optimizer.
+    # You can use any optimizer supported by PyTorch
+    # simply setting the tag "OPT" in the config file.
+    # See config files in the "classification/configs" dict for example.
     optimizer = utils.get_optimizer(model.parameters(), configs["Model"]["OPT"])
 
-    # Set scheduler
+    # Set scheduler.
+    # You can use any scheduler supported by PyTorch
+    # simply setting the tag "Scheduler" in the config file.
+    # See config files in the "classification/configs" dict for example.
     scheduler = None
     if "Scheduler" in configs["Model"]:
         scheduler = utils.get_scheduler(optimizer, configs["Model"]["Scheduler"])
 
-    iterations = 0
+    # Following training scripts are verbose.
+    # Of ofcourse we can make it clear to warp some codes.
+    # But as most codes are used only here, warping makes no sense.
     trn_error_list, tst_error_list, trn_loss_list, tst_loss_list = [], [], [], []
-    best_error = 1
-    best_iter = 0
-    trn_loss = 0.
-    trn_pos = 0.
+    iterations, best_error, best_iter, trn_loss, trn_pos = 0, 1., 0, 0., 0.
     save_freq = configs["Train"]["save_freq"]
 
     while True:
@@ -145,10 +186,16 @@ if __name__ == "__main__":
                 y = y.to(device_id)
 
             pred = model(x)
+            if num_classes == 2:
+                pred = pred.squeeze(-1)
+                y = y.float()
             loss = criterion(pred, y)
             loss.backward()
             optimizer.step()
-            trn_pos += (pred.argmax(dim=-1) == y).sum().cpu()
+            if num_classes == 2:
+                trn_pos += (pred.gt(0.5) == y).sum().cpu()
+            else:
+                trn_pos += (pred.argmax(dim=-1) == y).sum().cpu()
             trn_loss += loss.item()
             if scheduler is not None:
                 scheduler.step()
@@ -183,9 +230,15 @@ if __name__ == "__main__":
                             y = y.to(device_id)
 
                         pred = model(x)
+                        if num_classes == 2:
+                            pred = pred.squeeze(-1)
+                            y = y.float()
                         loss = criterion(pred, y)
                         tst_loss += loss.item() * x.size(0)
-                        tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
+                        if num_classes == 2:
+                            trn_pos += (pred.gt(0.5) == y).sum().cpu()
+                        else:
+                            trn_pos += (pred.argmax(dim=-1) == y).sum().cpu()
 
                     tst_error = 1 - tst_pos / len(tst_data)
                     tst_loss = tst_loss / len(tst_data)
@@ -258,7 +311,7 @@ if __name__ == "__main__":
         if "switch_to_deploy" in method_list:
             model.switch_to_deploy()
 
-        input_shape = (sub_configs["in_channels"],
+        input_shape = (model_configs["in_channels"],
                        configs["Dataset"]["h"],
                        configs["Dataset"]["w"])
         macs_deploy, params_deploy = get_model_complexity_info(model,
@@ -282,9 +335,15 @@ if __name__ == "__main__":
                         y = y.to(device_id)
 
                     pred = model(x)
+                    if num_classes == 2:
+                        pred = pred.squeeze(-1)
+                        y = y.float()
                     loss = criterion(pred, y)
                     tst_loss += loss.item() * x.size(0)
-                    tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
+                    if num_classes == 2:
+                        trn_pos += (pred.gt(0.5) == y).sum().cpu()
+                    else:
+                        trn_pos += (pred.argmax(dim=-1) == y).sum().cpu()
 
                 tst_error = 1 - tst_pos / len(tst_data)
                 tst_loss = tst_loss / len(tst_data)
