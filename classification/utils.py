@@ -4,6 +4,7 @@ import logging
 import torch.nn as nn
 import torch.optim as opt
 from logging import handlers
+from functools import partial
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
 
@@ -18,25 +19,64 @@ def load_yaml_file(file_path):
     return data
 
 
-def get_norm(norm_type):
-    if norm_type == "BatchNorm":
-        norm = nn.BatchNorm2d
-    elif norm_type == "IdentityNorm":
-        norm = resnet.IdentityNorm
-    else:
-        raise NotImplementedError
+NORMS = {
+    "BatchNorm": nn.BatchNorm2d,
+    "IdentityNorm": resnet.IdentityNorm,
+}
 
+
+def get_norm(norm_type):
+    def get_norm_by_name(name):
+        if name in NORMS:
+            return NORMS[name]
+        else:
+            raise NotImplementedError
+
+    if isinstance(norm_type, str):
+        norm = get_norm_by_name(norm_type)
+    else:
+        # "norm_type" is a dict
+        norm_name = list(norm_type.keys())
+        if len(norm_name) > 1:
+            raise Exception("Not support more than one norm method!")
+        if len(norm_name) == 0:
+            raise Exception("At least one norm method must be specified!")
+        norm_name = norm_name[0]
+        norm = get_norm_by_name(norm_name)
+        norm_configs = norm_type[norm_name]
+        norm = partial(norm, **norm_configs)
     return norm
 
 
-def get_activation(act_type):
-    if act_type == "Identity":
-        act = resnet.Identity
-    elif act_type == "Relu":
-        act = nn.ReLU
-    else:
-        raise NotImplementedError
+ACTS = {
+    "Identity": resnet.Identity,
+    "Relu": nn.ReLU,
+    "ReLU": nn.ReLU,
+    "LeakyRelu": nn.LeakyReLU,
+    "LeakyReLU": nn.LeakyReLU,
+}
 
+
+def get_activation(act_type):
+    def get_act_by_name(name):
+        if name in ACTS:
+            return ACTS[name]
+        else:
+            raise NotImplementedError
+
+    if isinstance(act_type, str):
+        act = get_act_by_name(act_type)
+    else:
+        # "act_type" is a dict
+        act_name = list(act_type.keys())
+        if len(act_name) > 1:
+            raise Exception("Not support more than one activation function!")
+        if len(act_name) == 0:
+            raise Exception("At least one activation function must be specified!")
+        act_name = act_name[0]
+        act = get_act_by_name(act_name)
+        act_configs = act_type[act_name]
+        act = partial(act, **act_configs)
     return act
 
 
