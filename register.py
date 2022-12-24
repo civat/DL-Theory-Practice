@@ -1,7 +1,7 @@
 import os
 import importlib
 
-MODEL_MODULES = ["classification"]
+MODEL_MODULES = ["classification", "gan"]
 
 
 class Register:
@@ -39,7 +39,6 @@ class Register:
         return key in self._dict
 
     def keys(self):
-        """key"""
         return self._dict.keys()
 
 
@@ -55,3 +54,18 @@ def import_all_modules_for_register():
 
 name_to_model = Register("name_to_model")
 import_all_modules_for_register()
+
+
+def make_network(model_config):
+    """
+    Construct the model.
+    The Register can automatically load corresponding model
+    using the model name once it was registered in the class definition.
+    Each model class (under "classification/models") defines its own "make_network" method to parse the args.
+    So you can see the model's "make_network" method to find out the valid args for the model.
+    """
+    for name in name_to_model.keys():
+        if name in model_config:
+            sub_configs = model_config[name]
+            model = name_to_model[name].make_network(sub_configs)
+            return model, sub_configs
