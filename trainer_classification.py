@@ -236,9 +236,9 @@ if __name__ == "__main__":
                         loss = criterion(pred, y)
                         tst_loss += loss.item() * x.size(0)
                         if num_classes == 2:
-                            trn_pos += (pred.gt(0.5) == y).sum().cpu()
+                            tst_pos += (pred.gt(0.5) == y).sum().cpu()
                         else:
-                            trn_pos += (pred.argmax(dim=-1) == y).sum().cpu()
+                            tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
 
                     tst_error = 1 - tst_pos / len(tst_data)
                     tst_loss = tst_loss / len(tst_data)
@@ -341,9 +341,9 @@ if __name__ == "__main__":
                     loss = criterion(pred, y)
                     tst_loss += loss.item() * x.size(0)
                     if num_classes == 2:
-                        trn_pos += (pred.gt(0.5) == y).sum().cpu()
+                        tst_pos += (pred.gt(0.5) == y).sum().cpu()
                     else:
-                        trn_pos += (pred.argmax(dim=-1) == y).sum().cpu()
+                        tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
 
                 tst_error = 1 - tst_pos / len(tst_data)
                 tst_loss = tst_loss / len(tst_data)
