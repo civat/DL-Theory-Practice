@@ -16,12 +16,6 @@ class BaseModel(ABC):
 
     def __init__(self, configs):
         """Initialize the BaseModel class.
-
-        Parameters:
-        -----------
-        configs: dict
-          All configs of the model.
-
         When creating your custom class, you need to implement your own initialization.
         In this function, you should first call <BaseModel.__init__(self, opt)>
         Then, you need to define four lists:
@@ -29,6 +23,11 @@ class BaseModel(ABC):
             -- self.model_names (str list):         define networks used in our training.
             -- self.visual_names (str list):        specify the images that you want to display and save.
             -- self.optimizers (optimizer list):    define and initialize optimizers. You can define one optimizer for each network. If two networks are updated at the same time, you can use itertools.chain to group them. See cycle_gan_model.py for an example.
+
+        Parameters:
+        -----------
+        configs: dict
+          All configs of the model.
         """
         self.configs = configs
 
@@ -46,9 +45,7 @@ class BaseModel(ABC):
             device = "cuda"
         self.device = device
         self.device_id = device_id
-        self.device_ids = device_ids
 
-        self.is_train = configs["Train"]["is_train"]
         self.loss_names = []
         self.model_names = []
         self.visual_names = []
@@ -75,33 +72,22 @@ class BaseModel(ABC):
         """Calculate losses, gradients, and update network weights; called in every training iteration"""
         pass
 
-    def setup(self, opt):
-        """Load and print networks; create schedulers
-
-        Parameters:
-            opt (Option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions
-        """
-        # if self.isTrain:
-        #     self.schedulers = [networks.get_scheduler(optimizer, opt) for optimizer in self.optimizers]
-        # if not self.isTrain or opt.continue_train:
-        #     load_suffix = 'Epoch%d_Iter%d' % (opt.epoch, opt.load_iter)
-        #     # load_suffix = 'iter_{}'.format(opt.load_iter) if opt.load_iter > 0 else opt.epoch
-        #     self.load_networks(load_suffix)
-        # self.print_networks(opt.verbose)
+    def setup(self, configs):
+        """Load and print networks; create schedulers."""
         pass
 
     def eval(self):
         """Make models eval mode during test time"""
         for name in self.model_names:
             if isinstance(name, str):
-                net = getattr(self, 'net' + name)
+                net = getattr(self, name)
                 net.eval()
 
     def train(self):
         """Make models train mode during train time"""
         for name in self.model_names:
             if isinstance(name, str):
-                net = getattr(self, 'net' + name)
+                net = getattr(self, name)
                 net.train()
 
     def test(self):
@@ -112,14 +98,22 @@ class BaseModel(ABC):
         """
         with torch.no_grad():
             self.forward()
-            self.compute_visuals()
-
-    def compute_visuals(self):
-        """Calculate additional output images."""
-        pass
 
     def compute_info(self, data_loader):
         """Calculate additional debugging info."""
+        pass
+
+    def save_figures(self, iter_list, output_path):
+        """
+        Save training figures.
+
+        Parameters
+        ----------
+        iter_list: list(int)
+          List of iteration numbers. This is used as the X-axis in the figure.
+        output_path: str
+          Output path.
+        """
         pass
 
     def get_image_paths(self):
@@ -155,20 +149,23 @@ class BaseModel(ABC):
                     getattr(self, 'loss_' + name))  # float(...) works for both scalar tensor and float number
         return errors_ret
 
-    def save_networks(self, checkpoints_dir):
-        """Save all the networks to the disk.
+    def save_networks(self, checkpoints):
+        """
+        Save all the networks to the disk.
 
-        Parameters:
-            epoch (int) -- current epoch; used in the file name '%s_net_%s.pth' % (epoch, name)
+        Parameters
+        ----------
+        checkpoints: str
+          The path the model saved to.
         """
         for name in self.model_names:
             if isinstance(name, str):
-                net = getattr(self, 'net' + name)
+                net = getattr(self, name)
                 save_filename = name + '.pth'
-                save_path = os.path.join(checkpoints_dir, save_filename)
-                if len(self.gpu_ids) > 0 and torch.cuda.is_available():
+                save_path = os.path.join(checkpoints, save_filename)
+                if self.device == "cuda":
                     torch.save(net.cpu().state_dict(), save_path)
-                    net.cuda(int(self.gpu_ids[0]))
+                    net.cuda(self.device_id)
                 else:
                     torch.save(net.cpu().state_dict(), save_path)
 
