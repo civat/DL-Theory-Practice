@@ -40,7 +40,7 @@ class ResBlockTranspose(nn.Module):
           Whether to use shortcut connection in the block.
           Set this to False make the block as a simply two-layers conv block.
         pre_act: bool
-          Whether to use pre-activation in the Transpose.
+          Whether to use pre-activation in the ResBlockTranspose.
         dropout: float
           Dropout rate.
         padding_mode: str
