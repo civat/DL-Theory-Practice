@@ -40,7 +40,7 @@ class ResBlockTranspose(nn.Module):
           Whether to use shortcut connection in the block.
           Set this to False make the block as a simply two-layers conv block.
         pre_act: bool
-          Whether to use pre-activation in the ResBlock.
+          Whether to use pre-activation in the Transpose.
         dropout: float
           Dropout rate.
         padding_mode: str
@@ -107,7 +107,7 @@ class ResBlockTranspose(nn.Module):
         return x1
 
 
-class ResNetDecoder(nn.Module):
+class ResnetDecoder(nn.Module):
     """
     Defines ResNet-like decoder part in a network.
     The input to the decoder is assumed to be a feature map.
@@ -169,10 +169,10 @@ class ResNetDecoder(nn.Module):
         convs: nn.Sequential
           A sequence of NN modules.
         """
-        super(ResNetDecoder, self).__init__()
+        super(ResnetDecoder, self).__init__()
         convs = []
         for i, (n_blocks, stride) in enumerate(zip(n_blocks_list, stride_list)):
-            convs += ResNetDecoder._make_res_part(in_channels, kernel_size, stride, norm, act, up_sample, bias,
+            convs += ResnetDecoder._make_res_part(in_channels, kernel_size, stride, norm, act, up_sample, bias,
                                                   use_short_cut, n_blocks, pre_act, dropout, padding_mode, use_out_act)
             in_channels = int(in_channels / stride)
 
@@ -209,13 +209,13 @@ class ResNetDecoder(nn.Module):
           Kernel size of convolution operator.
         stride: int
           Stride of the first conv layer in the block.
-          The output channel of the first conv layer is: in_channels*stride
+          The output channel of the first conv layer is: in_channels/stride
         norm: nn.Module
           The normalization method used in the block.
           Set this to "IdentityNorm" to disable normalization.
         act: nn.Module
           The activation function used in the block.
-        up_sample: string
+        up_sample: str
           The up-sampling method used in the block when
           the shortcut tensor size is mismatched with the
           main stream tensor.
@@ -326,7 +326,7 @@ class ResNetGenVec(nn.Module):
             w, h = hidden_size
 
         self.fc = nn.Linear(input_dim, w * h * hidden_channels)
-        self.decoder = ResNetDecoder(n_blocks_list, stride_list, hidden_channels, out_channels,
+        self.decoder = ResnetDecoder(n_blocks_list, stride_list, hidden_channels, out_channels,
                                      kernel_size, norm, act, up_sample, bias, use_short_cut,
                                      pre_act, dropout, padding_mode, use_out_act)
         self.w, self.h = w, h
