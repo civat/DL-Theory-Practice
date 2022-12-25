@@ -8,7 +8,7 @@ from torch.utils.data.dataloader import DataLoader
 
 import register
 from classification import utils
-from gan.datasets import GANDataset
+from gan.dataset import GANDataset
 
 
 def back(img):
@@ -70,10 +70,10 @@ if __name__ == "__main__":
                             drop_last=True,
                             pin_memory=pin_memory)
     tst_loader = DataLoader(tst_data,
-                            batch_size=batch_size,
+                            batch_size=1,
                             shuffle=False,
                             num_workers=num_workers,
-                            drop_last=False,
+                            drop_last=True,
                             pin_memory=pin_memory)
 
     # Construct the model.
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     model, model_configs = register.make_network(configs["Model"])
 
     # Create output dict if it does not exist
-    output_path = os.path.join(configs["Train"]["output"])
+    output_path = os.path.join(model_configs["Train"]["output"])
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     iterations = 1
     while True:
         for data in trn_loader:
-            if iterations == configs["Train"]["iterations"]:
+            if iterations == model_configs["Train"]["iterations"]:
                 break
 
             model.set_input(data)
@@ -123,7 +123,7 @@ if __name__ == "__main__":
                     if not os.path.exists(os.path.join(output_path, str(iterations), "imgs")):
                         os.makedirs(os.path.join(output_path, str(iterations), "imgs"))
                     img_path = os.path.join(output_path, str(iterations), "imgs", f"{name}.jpg")
-                    img = back(img.squeeze(0).cpu().numpy())
+                    img = back(img.squeeze(0)).cpu().numpy()
                     cv2.imwrite(img_path, img)
                 model.train()
 
