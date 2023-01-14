@@ -8,7 +8,33 @@ from functools import partial
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
 
-from classification.models import resnet
+
+class Identity(nn.Module):
+    """
+    Identity mapping.
+    This is generally used as "Identity activation" in networks for
+    convenient implementation of "no activation".
+    """
+
+    def __init__(self):
+        super(Identity, self).__init__()
+
+    def forward(self, x):
+        return x
+
+
+class IdentityNorm(nn.Module):
+    """
+    Identity norm.
+    This is generally used as "Identity norm" in networks for
+    convenient implementation of "no normalization".
+    """
+
+    def __init__(self, in_channels):
+        super(IdentityNorm, self).__init__()
+
+    def forward(self, x):
+        return x
 
 
 def load_yaml_file(file_path):
@@ -21,7 +47,7 @@ def load_yaml_file(file_path):
 
 NORMS = {
     "BatchNorm": nn.BatchNorm2d,
-    "IdentityNorm": resnet.IdentityNorm,
+    "IdentityNorm": IdentityNorm,
 }
 
 
@@ -49,7 +75,7 @@ def get_norm(norm_type):
 
 
 ACTS = {
-    "Identity": resnet.Identity,
+    "Identity": Identity,
     "Relu": nn.ReLU,
     "ReLU": nn.ReLU,
     "LeakyRelu": nn.LeakyReLU,

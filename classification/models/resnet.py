@@ -7,34 +7,6 @@ from classification import nnblock
 from classification.models import tools
 
 
-class Identity(nn.Module):
-    """
-    Identity mapping.
-    This is generally used as "Identity activation" in networks for
-    convenient implementation of "no activation".
-    """
-
-    def __init__(self):
-        super(Identity, self).__init__()
-
-    def forward(self, x):
-        return x
-
-
-class IdentityNorm(nn.Module):
-    """
-    Identity norm.
-    This is generally used as "Identity norm" in networks for
-    convenient implementation of "no normalization".
-    """
-
-    def __init__(self, in_channels):
-        super(IdentityNorm, self).__init__()
-
-    def forward(self, x):
-        return x
-
-
 class LambdaLayer(nn.Module):
     def __init__(self, lambd):
         super(LambdaLayer, self).__init__()
@@ -155,7 +127,7 @@ class ResBlock(nn.Module):
                 else:
                     raise NotImplementedError
             else:
-                self.shortcut = Identity()
+                self.shortcut = utils.Identity()
 
     def forward(self, x):
         x1 = self.convs(x)
@@ -285,7 +257,7 @@ class Bottleneck(nn.Module):
                 else:
                     raise NotImplementedError
             else:
-                self.shortcut = Identity()
+                self.shortcut = utils.Identity()
 
         self.hidden_channels = hidden_channels
         self.out_channels = out_channels

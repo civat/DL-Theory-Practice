@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 import register
-from classification.models.resnet import Identity
+from classification.utils import Identity
 from classification.utils import get_norm
 from classification.utils import get_activation
 
