@@ -156,16 +156,27 @@ def get_optimizer(params, optimizer_configs):
 
 
 def init_nn(model, init_configs):
-    inits_available = {
-        "kaiming_normal_": nn.init.kaiming_normal_
-    }
-    keys = list(init_configs.keys())
-    if len(keys) != 1:
-        raise Exception("Only one init method can be specified!")
-    if keys[0] in inits_available:
-        for name, layer in model.named_modules():
-            if type(layer) == nn.Conv2d or type(layer) == nn.Linear:
-                nn.init.kaiming_normal_(layer.weight, **init_configs[keys[0]])
+    inits_available = {}
+    for name, init in inspect.getmembers(nn.init):
+        # All init methods are end with "_"
+        if name[-1] != "_":
+            inits_available[name] = init
+
+    init_name = list(init_configs.keys())
+    if len(init_name) > 1:
+        raise Exception("Not support more than one init methods!")
+    if len(init_name) == 0:
+        raise Exception("At least one init method must be specified!")
+    init_name = init_name[0]
+    args = init_configs[init_name]
+    for key, value in args.items():
+        try:
+            args[key] = float(value)
+        except Exception:
+            pass
+    for layer, name in model.named_modules():
+        if type(layer) == nn.Conv2d or type(layer) == nn.Linear:
+            inits_available[init_name](layer.weightm, **args)
 
 
 class Logger(object):
