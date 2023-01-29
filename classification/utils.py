@@ -159,7 +159,7 @@ def init_nn(model, init_configs):
     inits_available = {}
     for name, init in inspect.getmembers(nn.init):
         # All init methods are end with "_"
-        if name[-1] != "_":
+        if name[-1] == "_":
             inits_available[name] = init
 
     init_name = list(init_configs.keys())
@@ -176,7 +176,7 @@ def init_nn(model, init_configs):
             pass
     for layer, name in model.named_modules():
         if type(layer) == nn.Conv2d or type(layer) == nn.Linear:
-            inits_available[init_name](layer.weightm, **args)
+            inits_available[init_name](layer.weight, **args)
 
 
 class Logger(object):
