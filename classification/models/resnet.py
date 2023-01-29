@@ -339,6 +339,7 @@ class ResNet(nn.Module):
           Whether to use maxpool in the network.
         num_classes: int
           Number of classes.
+          If the value is set to -1, the model will output last feature map.
         pre_act: bool
           Whether to use pre-activation in the ResBlock.
         dropout: float
@@ -355,17 +356,20 @@ class ResNet(nn.Module):
                                                         use_maxpool,
                                                         pre_act, dropout, use_out_act, conv)
         # For binary classification task, we use BCE loss so only one output logit is needed.
+        self.num_classes = num_classes
         if num_classes == 2:
             num_classes = 1
         self.act_last = None if not pre_act else act()
-        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(out_channels * block.expansion, num_classes)
+        if num_classes != -1:
+            self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
+            self.fc = nn.Linear(out_channels * block.expansion, num_classes)
 
     def forward(self, x):
         output = self.convs(x) if self.act_last is None else self.act_last(self.convs(x))
-        output = self.avg_pool(output)
-        output = output.view(output.size(0), -1)
-        output = self.fc(output)
+        if self.num_classes != -1:
+            output = self.avg_pool(output)
+            output = output.view(output.size(0), -1)
+            output = self.fc(output)
         return output
 
     @staticmethod
