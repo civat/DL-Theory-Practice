@@ -1,4 +1,4 @@
-# This code is modified from the torchvision:
+# The code is modified from the torchvision:
 # https://github.com/pytorch/vision/blob/main/torchvision/models/inception.py
 
 import torch
@@ -123,7 +123,7 @@ class InceptionC(nn.Module):
 
 class InceptionD(nn.Module):
 
-    def __init__(self, in_channels, conv_block):
+    def __init__(self, in_channels, conv_block=None):
         super().__init__()
         if conv_block is None:
             conv_block = BasicConv2d
@@ -332,7 +332,7 @@ class Inception3(nn.Module):
         # N x 768 x 17 x 17
         aux = None
         if self.AuxLogits is not None:
-            if self.training:
+            if self.mode == "train":
                 aux = self.AuxLogits(x)
         # N x 768 x 17 x 17
         x = self.Mixed_7a(x)
