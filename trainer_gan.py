@@ -125,7 +125,7 @@ if __name__ == "__main__":
     # Load configs
     parser = argparse.ArgumentParser(description="Trainer for GAN task.")
     parser.add_argument('--config_file', type=str,
-                        default="classification/configs/MobileOne/MobileOne_20_CIFAR10_EXP.yaml",
+                        default="gan/configs/CIFAR10/DCGAN_CIFAR10_small.yaml",
                         help="Path of config file.")
     config_file_path = parser.parse_args().config_file
     configs = utils.load_yaml_file(config_file_path)
@@ -253,7 +253,7 @@ if __name__ == "__main__":
                             log.logger.info(f"The best metric {k} at {iterations}-th is: {best_metrics[k]}")
                             iteration_list = [i for i in range(len(history_metrics[k]))]
                             save_freq = model_configs["Train"]["save_freq"]
-                            utils.draw_line_figure(data_list=[iteration_list, history_metrics[k], "red", k],
+                            utils.draw_line_figure(data_list=[[iteration_list, history_metrics[k], "red", k]],
                                                    figsize=(20, 8),
                                                    dpi=80,
                                                    x_label=f"iterations x{save_freq}",

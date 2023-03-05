@@ -1,25 +1,60 @@
 # Deep Learning Theory and Practice
 
-Hello Friends:
+Hi Friends:
 
 仓库会尝试用尽可能统一的框架去实现一些常见CV任务中的经典网络。目前仓库中实现了部分图像分类的网络，近期会新加入GAN和一些用于Image2Image任务的算法，如去模糊。
 
 我们的目标是：仅用配置文件就能实现非常丰富的网络结构定义。
 
-纯业余时间在写，有bug或意见烦请指出、反馈！
-
-先谢过！
+纯业余时间在写，测试用例无法覆盖完全。 有bug或意见烦请指出、反馈！
 
 --------------------
-三方依赖：
+三方依赖（列出的是已测试版本。向下兼容的高版本也行）：
 
-pyyaml： 0.6.9
+PyTorch: 1.11.0
 
-ptflops： 6.0
+pyyaml：0.6.9
+
+ptflops：6.0
+
+scipy: 1.5.1
+
+Pillow: 7.2.0
+
+opencv: 4.5.5
 
 --------------------
+## 更新日志
+
+**2023/03/05**
+
+更新GAN。为了框架统一，更改了大量之前代码。首先个人精力，测试用例不足，可能会有bug。欢迎指出。
+
+--------------------
+## GAN
+对于GAN任务，可以使用以下两种方法之一来训练模型： 
+
+1. 用IDE去运行trainer_gan.py，仅需在代码中指定config_file即可；
+2. 使用如下命令来指定一个config_file来启动训练：
 
 
+```bash
+python trainer_gan.py --config_file your_config_file.yaml
+```
+
+关于config_file的写法，仓库中在“gan/configs/”目录下包含了对不同模型写的config，可以参考。
+后续会添加更多config。
+
+详细的细节稍后会在wiki中补充。
+
+
+**CIFAR10图像数据集地址（百度网盘）**：链接：https://pan.baidu.com/s/1VnHL3cSpQo-exU8m4OpMTA?pwd=bxvw 
+提取码：bxvw
+
+**预训练Inception V3（百度网盘）**：链接：https://pan.baidu.com/s/1wV3cA10LkQA4iZlS1AOOLg?pwd=sqhq 
+提取码：sqhq
+
+--------------------
 ## Classification
 
 对于分类任务，可以使用以下两种方法之一来训练模型： 

@@ -1,0 +1,78 @@
+Dataset:
+  trn_path: "../workspace/Datasets/CIFAR-10-GAN"
+  tst_path: "../workspace/Datasets/CIFAR-10-GAN"
+  vec_dim: 100
+  batch_size: 128
+  h: 32
+  w: 32
+  c: 3
+  num_workers: 4
+  pin_memory: False
+Argumentation:
+  mean: [0.5, 0.5, 0.5]
+  std: [0.5, 0.5, 0.5]
+Model:
+  GAN:
+    G:
+      PlainetGenVec:
+        input_dim          : 100
+        hidden_channels    : 1024
+        hidden_size        : 4
+        out_channels       : 3
+        kernel_size_up     : 4
+        kernel_size_eq     : 3
+        stride             : 2
+        norm               : "BatchNorm"
+        act                : "Relu"
+        bias               : False
+        dropout            : 0
+        n_layers           : 3
+        output_conv        : False
+      OPT:
+        Adam:
+          lr: 1e-4
+          betas: [0.5, 0.999]
+      Init:
+        normal_:
+          mean: 0
+          std: 0.2
+    D:
+      PlainNet:
+        n_blocks_list    : [1, 1, 1, 1]
+        stride_list      : [1, 2, 2, 2]
+        in_channels      : 3
+        hidden_channels  : 32
+        kernel_size      : 3
+        norm             : "BatchNorm"
+        act:
+          LeakyReLU:
+            negative_slope: 0.2
+        bias: False
+        num_classes: 2
+      OPT:
+        Adam:
+          lr: 1e-4
+          betas: [ 0.5, 0.999 ]
+      Init:
+        normal_:
+          mean: 0
+          std: 0.2
+
+    Train:
+      GAN_loss:
+        wgangp:
+          type: "mixed"
+          constant: 1.0
+          lambda: 10
+      save_imgs: 30
+      iterations: 100000
+      print_freq: 50
+      save_freq: 500
+      output: "../workspace/Output/GAN/DCGAN_CIFAR10"
+      device: [0]
+      Metric:
+        InceptionScore_FID:
+          inception3_path: "../workspace/Pretrained_Models/inception_v3_google-0cc3c7bd.pth"
+          n_images: 50000
+          n_repeat: 1
+          batch_size: 8  # make sure the dataset batch_size is divisible by this batch_size
