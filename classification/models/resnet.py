@@ -133,7 +133,10 @@ class ResBlock(nn.Module):
         x1 = self.convs(x)
         if self.use_short_cut:
             if self.shortcut is not None:
-                x1 += self.shortcut(x)
+                skip = self.shortcut(x)
+                if skip.size(-1) != x1.size(-1) or skip.size(-2) != x1.size(-2):
+                    skip = F.interpolate(skip, size=(x1.size(-2), x1.size(-1)))
+                x1 += skip
             else:
                 # The only reason that we get here is the down_sample=="interpolate".
                 # So we implement the method here.
@@ -267,7 +270,10 @@ class Bottleneck(nn.Module):
         x1 = self.convs(x)
         if self.use_short_cut:
             if self.shortcut is not None:
-                x1 += self.shortcut(x)
+                skip = self.shortcut(x)
+                if skip.size(-1) != x1.size(-1) or skip.size(-2) != x1.size(-2):
+                    skip = F.interpolate(skip, size=(x1.size(-2), x1.size(-1)))
+                x1 += skip
             else:
                 # The only reason that we get here is the down_sample=="interpolate".
                 # So we implement the method here.
@@ -515,8 +521,8 @@ class ResNet(nn.Module):
         (convs, hidden_channels): Tuple
           convs: nn.Module
             The constructed backbone.
-          hidden_channels:
-            Channels of the output of the backbone.
+          hidden_channels: int
+            Number of channels of the backbone's output.
         """
         convs = [
             nn.Conv2d(in_channels, hidden_channels, kernel_size=kernel_size_first, stride=stride_first,
@@ -591,8 +597,5 @@ class ResNet(nn.Module):
             "use_out_act": True,
         }
 
-        for key in default_params.keys():
-            if key not in ["conv", "block", "norm", "act"] and key in configs:
-                default_params[key] = configs[key]
-
+        default_params = utils.set_params(default_params, configs, excluded_keys=["conv", "block", "norm", "act"])
         return ResNet(**default_params)
