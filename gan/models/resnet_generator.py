@@ -22,7 +22,7 @@ class ResBlockTranspose(nn.Module):
         kernel_size_up: int or Tuple
           Kernel size of transposed convolution operator used for up-sampling.
         kernel_size_eq: int or Tuple
-          Kernel size of  convolution operator which does not change the shape of the feature map.
+          Kernel size of convolution operator which does not change the shape of the feature map.
         stride: int
           Stride of the first conv layer in the block.
           The output channel of the first conv layer is: in_channels*stride
@@ -51,6 +51,7 @@ class ResBlockTranspose(nn.Module):
           Available values are: 'zeros', 'reflect', 'replicate' or 'circular'.
         output_layer: bool
           True if the block is used as output layer (so we do not need to add norm layer)
+          False otherwise.
         """
         super(ResBlockTranspose, self).__init__()
 
@@ -58,7 +59,6 @@ class ResBlockTranspose(nn.Module):
         # make the output's shape 2x larger.
         p = int((kernel_size_up - 1) / 2)
 
-        out_channels = int(in_channels / stride)
         self.stride = stride
         self.use_short_cut = use_short_cut
         if stride == 1:
@@ -85,7 +85,7 @@ class ResBlockTranspose(nn.Module):
                 norm(out_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size_eq, stride=1, padding=p, padding_mode=padding_mode, bias=bias),
+                nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size_eq, stride=1, padding=int(kernel_size_eq // 2), padding_mode=padding_mode, bias=bias),
             )
 
         if use_short_cut:
@@ -226,7 +226,7 @@ class ResnetDecoder(nn.Module):
         return self.convs(x)
 
     @staticmethod
-    def _make_res_part(in_channels,  out_channels, kernel_size_up, kernel_size_eq, stride, norm, act, up_sample, bias,
+    def _make_res_part(in_channels, out_channels, kernel_size_up, kernel_size_eq, stride, norm, act, up_sample, bias,
                        use_short_cut, n_blocks, pre_act, dropout, padding_mode, use_out_act, output_layer):
         """
         Utility function for constructing res part in resnet.
@@ -240,7 +240,7 @@ class ResnetDecoder(nn.Module):
         kernel_size_up: int or Tuple
           Kernel size of transposed convolution operator used for up-sampling.
         kernel_size_eq: int or Tuple
-          Kernel size of  convolution operator which does not change the shape of the feature map.
+          Kernel size of convolution operator which does not change the shape of the feature map.
         stride: int
           Stride of the first conv layer in the block.
           The output channel of the first conv layer is: in_channels/stride
@@ -336,7 +336,7 @@ class ResNetGenVec(nn.Module):
         kernel_size_up: int or Tuple
           Kernel size of transposed convolution operator used for up-sampling.
         kernel_size_eq: int or Tuple
-          Kernel size of  convolution operator which does not change the shape of the feature map.
+          Kernel size of convolution operator which does not change the shape of the feature map.
         norm: nn.Module
           The normalization method used in the block.
           Set this to "IdentityNorm" to disable normalization.
