@@ -210,6 +210,7 @@ def parse_device(device_name):
             device = "cuda"
         else:
             device = "cpu"
+            device_id = "cpu"
     elif isinstance(device_name, list):
         device_id = f"cuda:{device_name[0]}"
         device_ids = list(device_name)
