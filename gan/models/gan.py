@@ -1,8 +1,6 @@
 import os
 import torch
-import torch.nn as nn
 import matplotlib.pyplot as plt
-from ptflops import get_model_complexity_info
 
 import register
 from gan.gan_loss import GANLoss
