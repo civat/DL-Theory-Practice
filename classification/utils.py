@@ -265,7 +265,7 @@ def draw_line_figure(data_list, figsize, dpi, x_label, y_label, legend_loc, save
       2) The 2nd element is the values of x-axis;
       3) The 3rd element is the line color;
       4) The 4th element is the line label name.
-    figsize: int
+    figsize: Tuple(int, int)
       Figure size.
     dpi: int
       Dots per inches (dpi) determines how many pixels the figure comprises.
