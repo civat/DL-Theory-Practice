@@ -50,7 +50,7 @@ class ResBlockTranspose(nn.Module):
           Method used for padding.
           Available values are: 'zeros', 'reflect', 'replicate' or 'circular'.
         output_layer: bool
-          True if the block is used as output layer (so we do not need to add norm layer)
+          True if the block is used as output layer (so we do not need to add norm layer);
           False otherwise.
         """
         super(ResBlockTranspose, self).__init__()
