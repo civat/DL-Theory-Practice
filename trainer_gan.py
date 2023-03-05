@@ -28,7 +28,7 @@ if __name__ == "__main__":
     # Load configs
     parser = argparse.ArgumentParser(description="Trainer for GAN task.")
     parser.add_argument('--config_file', type=str,
-                        default="gan/configs/Intel_Image/Vanilla_GAN_Intel_Buildings_64.yaml",
+                        default="classification/configs/MobileOne/MobileOne_20_CIFAR10_EXP.yaml",
                         help="Path of config file.")
     config_file_path = parser.parse_args().config_file
     configs = utils.load_yaml_file(config_file_path)

@@ -1,15 +1,16 @@
 import torch.nn as nn
-import torch.nn.functional as F
 
 import register
-from classification import utils
+from classification.utils import Identity
+from classification.utils import get_norm
+from classification.utils import get_activation
 
 
 class ResBlockTranspose(nn.Module):
     """Implementation of ResBlock with transposed convolution."""
 
-    def __init__(self, in_channels, out_channels, kernel_size_up, kernel_size_eq, stride, norm, act, up_sample,
-                 bias, use_short_cut, pre_act, dropout, padding_mode, output_layer):
+    def __init__(self, in_channels, kernel_size, stride, norm, act, up_sample, bias, use_short_cut,
+                 pre_act, dropout, padding_mode):
         """
         Initialize transposed ResBlock.
 
@@ -17,12 +18,8 @@ class ResBlockTranspose(nn.Module):
         ----------
         in_channels: int
           Number of channels of input tensor.
-        out_channels: int
-          Number of channels of output tensor.
-        kernel_size_up: int or Tuple
-          Kernel size of transposed convolution operator used for up-sampling.
-        kernel_size_eq: int or Tuple
-          Kernel size of  convolution operator which does not change the shape of the feature map.
+        kernel_size: int
+          Kernel size of convolution operator.
         stride: int
           Stride of the first conv layer in the block.
           The output channel of the first conv layer is: in_channels*stride
@@ -49,43 +46,36 @@ class ResBlockTranspose(nn.Module):
         padding_mode: str
           Method used for padding.
           Available values are: 'zeros', 'reflect', 'replicate' or 'circular'.
-        output_layer: bool
-          True if the block is used as output layer (so we do not need to add norm layer)
         """
         super(ResBlockTranspose, self).__init__()
 
-        # For transposed conv with kernel size being even number, this padding value can
-        # make the output's shape 2x larger.
-        p = int((kernel_size_up - 1) / 2)
+        # Using this padding value for kernel with size > 1
+        # makes the output channel size irrelevant to the stride.
+        p = int((kernel_size - 1) / 2)
 
         out_channels = int(in_channels / stride)
         self.stride = stride
         self.use_short_cut = use_short_cut
-        if stride == 1:
-            kernel_size_up = kernel_size_eq
 
         if not pre_act:
-            self.convs = [
-                nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size_up, stride=stride, padding=p, padding_mode=padding_mode, bias=bias),
+            self.convs = nn.Sequential(
+                nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
                 norm(out_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size_eq, stride=1, padding=int(kernel_size_eq // 2), padding_mode=padding_mode, bias=bias),
-            ]
-            if not output_layer:
-                self.convs += [norm(out_channels)]
-            self.convs = nn.Sequential(*self.convs)
-
+                nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, padding_mode=padding_mode, bias=bias),
+                norm(out_channels)
+            )
         else:
             self.convs = nn.Sequential(
                 norm(in_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size_up, stride=stride, padding=p, padding_mode=padding_mode, bias=bias),
+                nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
                 norm(out_channels),
                 act(),
                 nn.Dropout(dropout),
-                nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size_eq, stride=1, padding=p, padding_mode=padding_mode, bias=bias),
+                nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, padding_mode=padding_mode, bias=bias),
             )
 
         if use_short_cut:
@@ -106,16 +96,13 @@ class ResBlockTranspose(nn.Module):
                 else:
                     raise NotImplementedError
             else:
-                self.shortcut = utils.Identity()
+                self.shortcut = Identity()
 
     def forward(self, x):
         x1 = self.convs(x)
         if self.use_short_cut:
             if self.shortcut is not None:
-                skip = self.shortcut(x)
-                if skip.size(-1) != x1.size(-1) or skip.size(-2) != x1.size(-2):
-                    skip = F.interpolate(skip, size=(x1.size(-2), x1.size(-1)))
-                x1 += skip
+                x1 += self.shortcut(x)
 
         return x1
 
@@ -133,8 +120,8 @@ class ResnetDecoder(nn.Module):
          to a feature map.
     """
 
-    def __init__(self, n_blocks_list, stride_list, in_channels, out_channels, kernel_size_up, kernel_size_eq,
-                 norm, act, up_sample, bias, use_short_cut, pre_act, dropout, padding_mode, use_out_act, output_conv):
+    def __init__(self, n_blocks_list, stride_list, in_channels, out_channels, kernel_size, norm, act,
+                 up_sample, bias, use_short_cut, pre_act, dropout, padding_mode, use_out_act):
         """
         Initialize ResNet based decoder.
 
@@ -149,10 +136,8 @@ class ResnetDecoder(nn.Module):
           Number of channels of input tensor.
         out_channels: int
           Number of channels of output tensor.
-        kernel_size_up: int or Tuple
-          Kernel size of transposed convolution operator used for up-sampling.
-        kernel_size_eq: int or Tuple
-          Kernel size of  convolution operator which does not change the shape of the feature map.
+        kernel_size: int
+          Kernel size of convolution operator in building block.
         norm: nn.Module
           The normalization method used in the block.
           Set this to "IdentityNorm" to disable normalization.
@@ -178,8 +163,6 @@ class ResnetDecoder(nn.Module):
           Available values are: 'zeros', 'reflect', 'replicate' or 'circular'.
         use_out_act: bool
           Whether to use activation on the output of ResBlock.
-        output_conv: bool
-          Whether to use an additional conv as the output layer.
 
         Return
         ------
@@ -187,36 +170,23 @@ class ResnetDecoder(nn.Module):
           A sequence of NN modules.
         """
         super(ResnetDecoder, self).__init__()
-        assert len(n_blocks_list) == len(stride_list)
         convs = []
+        for i, (n_blocks, stride) in enumerate(zip(n_blocks_list, stride_list)):
+            convs += ResnetDecoder._make_res_part(in_channels, kernel_size, stride, norm, act, up_sample, bias,
+                                                  use_short_cut, n_blocks, pre_act, dropout, padding_mode, use_out_act)
+            in_channels = int(in_channels / stride)
 
-        for i in range(len(n_blocks_list) - 1):
-            hidden_channels = int(in_channels / stride_list[i])
-            convs += ResnetDecoder._make_res_part(in_channels, hidden_channels, kernel_size_up, kernel_size_eq, stride_list[i],
-                                                  norm, act, up_sample, bias, use_short_cut, n_blocks_list[i], pre_act, dropout,
-                                                  padding_mode, use_out_act, output_layer=False)
-            in_channels = hidden_channels
-
-        if output_conv:
-            hidden_channels = int(in_channels / stride_list[-1])
-            convs += ResnetDecoder._make_res_part(in_channels, hidden_channels, kernel_size_up, kernel_size_eq, stride_list[-1],
-                                                  norm, act, up_sample, bias, use_short_cut, n_blocks_list[-1], pre_act, dropout,
-                                                  padding_mode, use_out_act, output_layer=False)
-            if not pre_act:
-                convs += [
-                    nn.Conv2d(hidden_channels, out_channels, kernel_size_eq, padding=int(kernel_size_eq // 2), padding_mode=padding_mode, bias=bias)
-                ]
-            else:
-                convs += [
-                    norm(in_channels),
-                    act(),
-                    nn.Conv2d(hidden_channels, out_channels, kernel_size_eq, padding=int(kernel_size_eq // 2), padding_mode=padding_mode, bias=bias)
-                ]
-
+        p = int((kernel_size - 1) / 2)
+        if not pre_act:
+            convs += [
+                nn.Conv2d(in_channels, out_channels, kernel_size, padding=p, padding_mode=padding_mode)
+            ]
         else:
-            convs += ResnetDecoder._make_res_part(in_channels, out_channels, kernel_size_up, kernel_size_eq, stride_list[-1],
-                                                  norm, act, up_sample, bias, use_short_cut, n_blocks_list[-1], pre_act, dropout,
-                                                  padding_mode, use_out_act, output_layer=True)
+            convs += [
+                norm(in_channels),
+                act(),
+                nn.Conv2d(in_channels, out_channels, kernel_size, padding=p, padding_mode=padding_mode)
+            ]
 
         convs.append(nn.Tanh())
         convs = nn.Sequential(*convs)
@@ -226,8 +196,8 @@ class ResnetDecoder(nn.Module):
         return self.convs(x)
 
     @staticmethod
-    def _make_res_part(in_channels,  out_channels, kernel_size_up, kernel_size_eq, stride, norm, act, up_sample, bias,
-                       use_short_cut, n_blocks, pre_act, dropout, padding_mode, use_out_act, output_layer):
+    def _make_res_part(in_channels, kernel_size, stride, norm, act, up_sample, bias,
+                       use_short_cut, n_blocks, pre_act, dropout, padding_mode, use_out_act):
         """
         Utility function for constructing res part in resnet.
 
@@ -235,12 +205,8 @@ class ResnetDecoder(nn.Module):
         ----------
         in_channels: int
           Number of channels of input tensor.
-        out_channels: int
-          Number of channels of output tensor.
-        kernel_size_up: int or Tuple
-          Kernel size of transposed convolution operator used for up-sampling.
-        kernel_size_eq: int or Tuple
-          Kernel size of  convolution operator which does not change the shape of the feature map.
+        kernel_size: int
+          Kernel size of convolution operator.
         stride: int
           Stride of the first conv layer in the block.
           The output channel of the first conv layer is: in_channels/stride
@@ -271,9 +237,6 @@ class ResnetDecoder(nn.Module):
           Available values are: 'zeros', 'reflect', 'replicate' or 'circular'.
         use_out_act: bool
           Whether to use activation on the output of ResBlockTranspose.
-        output_layer: bool
-          True if the block is used as output layer (so we do not need to add norm layer);
-          False otherwise.
 
         Return
         ------
@@ -284,21 +247,16 @@ class ResnetDecoder(nn.Module):
         # The first res block is with the specified "stride", and
         # all others are with stride=1.
         strides = [stride] + [1] * (n_blocks - 1)
-        layers = []
 
-        for i in range(len(strides) - 1):
+        layers = []
+        for i, stride in enumerate(strides):
             layers.append(
-                ResBlockTranspose(in_channels, out_channels, kernel_size_up, kernel_size_eq, strides[i], norm, act,
-                                  up_sample, bias, use_short_cut, pre_act, dropout, padding_mode, output_layer=False))
-            in_channels = out_channels
+                ResBlockTranspose(in_channels, kernel_size, stride, norm, act, up_sample, bias, use_short_cut, pre_act, dropout, padding_mode)
+            )
+            in_channels = int(in_channels * stride)
+
             if not pre_act and use_out_act:
                 layers.append(act())
-
-        layers.append(
-            ResBlockTranspose(in_channels, out_channels, kernel_size_up, kernel_size_eq, strides[-1], norm, act,
-                              up_sample, bias, use_short_cut, pre_act, dropout, padding_mode, output_layer=output_layer))
-        if not output_layer and not pre_act and use_out_act:
-            layers.append(act())
 
         return layers
 
@@ -311,7 +269,7 @@ class ResNetGenVec(nn.Module):
     """
 
     def __init__(self, input_dim, hidden_channels, hidden_size, n_blocks_list, stride_list, out_channels,
-                 kernel_size_up, kernel_size_eq, norm, act, up_sample, bias, use_short_cut, pre_act, dropout, padding_mode, use_out_act, output_conv):
+                 kernel_size, norm, act, up_sample, bias, use_short_cut, pre_act, dropout, padding_mode, use_out_act):
         """
         Initialize ResNet-based generator with input of vector.
 
@@ -333,10 +291,8 @@ class ResNetGenVec(nn.Module):
           Ensure that len(n_blocks_list) == len(n_blocks_list).
         out_channels: int
           Number of channels of output tensor.
-        kernel_size_up: int or Tuple
-          Kernel size of transposed convolution operator used for up-sampling.
-        kernel_size_eq: int or Tuple
-          Kernel size of  convolution operator which does not change the shape of the feature map.
+        kernel_size: int
+          Kernel size of convolution operator in building block.
         norm: nn.Module
           The normalization method used in the block.
           Set this to "IdentityNorm" to disable normalization.
@@ -371,8 +327,8 @@ class ResNetGenVec(nn.Module):
 
         self.fc = nn.Linear(input_dim, w * h * hidden_channels)
         self.decoder = ResnetDecoder(n_blocks_list, stride_list, hidden_channels, out_channels,
-                                     kernel_size_up, kernel_size_eq, norm, act, up_sample, bias, use_short_cut,
-                                     pre_act, dropout, padding_mode, use_out_act, output_conv)
+                                     kernel_size, norm, act, up_sample, bias, use_short_cut,
+                                     pre_act, dropout, padding_mode, use_out_act)
         self.w, self.h = w, h
         self.hidden_channels = hidden_channels
 
@@ -384,8 +340,8 @@ class ResNetGenVec(nn.Module):
 
     @staticmethod
     def make_network(configs):
-        norm = utils.get_norm(configs["norm"])
-        act = utils.get_activation(configs["act"])
+        norm = get_norm(configs["norm"])
+        act = get_activation(configs["act"])
 
         default_params = {
             "input_dim": 128,
@@ -394,8 +350,7 @@ class ResNetGenVec(nn.Module):
             "out_channels": 3,
             "n_blocks_list": [1, 1, 1],
             "stride_list": [2, 2, 2],
-            "kernel_size_up": 4,
-            "kernel_size_eq": 3,
+            "kernel_size": 3,
             "norm": norm,
             "act": act,
             "up_sample": "conv",
@@ -405,8 +360,10 @@ class ResNetGenVec(nn.Module):
             "dropout": 0,
             "padding_mode": "reflect",
             "use_out_act": False,
-            "output_conv": True,
         }
 
-        default_params = utils.set_params(default_params, configs, excluded_keys=["norm", "act"])
+        for key in default_params.keys():
+            if key not in ["norm", "act"] and key in configs:
+                default_params[key] = configs[key]
+
         return ResNetGenVec(**default_params)
