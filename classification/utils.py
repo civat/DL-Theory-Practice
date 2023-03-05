@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.optim as opt
 from logging import handlers
 from functools import partial
+import matplotlib.pyplot as plt
+from ptflops import get_model_complexity_info
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
 
@@ -179,6 +181,50 @@ def init_nn(model, init_configs):
             inits_available[init_name](layer.weight, **args)
 
 
+def cal_model_complexity(model, input_shape, log):
+    macs, params = get_model_complexity_info(model,
+                                             input_shape,
+                                             as_strings=True,
+                                             print_per_layer_stat=True,
+                                             verbose=True)
+    log.logger.info('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    log.logger.info('{:<30}  {:<8}'.format('Number of parameters    : ', params))
+
+
+def parse_device(device_name):
+    """
+    The simplest way to set the value is:
+      1) set to "cpu" if cpu is used;
+      2) set to a list of IDs (int) if GPUs are used.
+         Data will be collected on the first GPU in the list.
+      Examples:
+        1) Set to [0] if only one GPU is used.
+        2) Set to [1, 0] if two GPUs are used. Data will be collected on GPU 1.
+    """
+    device_id, device_ids, device = None, None, None
+    if isinstance(device_name, str):
+        assert device_name in ["cuda", "cpu"]
+        if device_name == "cuda":
+            device_id = "cuda:0"
+            device_ids = [0]
+            device = "cuda"
+        else:
+            device = "cpu"
+    elif isinstance(device_name, list):
+        device_id = f"cuda:{device_name[0]}"
+        device_ids = list(device_name)
+        device = "cuda"
+    return device_id, device_ids, device
+
+
+def set_device(model, device_id, device_ids, device):
+    # Set GPU mode if GPU used
+    if device == "cuda":
+        model = nn.DataParallel(model, device_ids=device_ids)
+        model = model.to(device_id)
+    return model
+
+
 class Logger(object):
     level_relations = {
         'debug': logging.DEBUG,
@@ -203,3 +249,62 @@ class Logger(object):
         fh.setLevel(self.level_relations.get(level))
         fh.setFormatter(format_str) 
         self.logger.addHandler(fh)
+
+
+def draw_line_figure(data_list, figsize, dpi, x_label, y_label, legend_loc, save_path):
+    """
+    Helper function to draw and save figure.
+
+    Parameters
+    ----------
+    data_list: list[list]
+      A list of data to draw.
+      The sublist is assumed to be a 4-sized list:
+      1) The 1st element is the values of y-axis;
+      2) The 2nd element is the values of x-axis;
+      3) The 3rd element is the line color;
+      4) The 4th element is the line label name.
+    figsize: int
+      Figure size.
+    dpi: int
+      Dots per inches (dpi) determines how many pixels the figure comprises.
+    x_label: str
+      x label name.
+    y_label: str
+      y label name.
+    legend_loc: str
+      Location of legend.
+    save_path: str
+      Path of the figure to save.
+    """
+    plt.figure(figsize=figsize, dpi=dpi)
+    for data in data_list:
+        data = list(data)
+        plt.plot(data[0], data[1], color=data[2], label=data[3])
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.legend(loc=legend_loc)
+    plt.savefig(save_path)
+    plt.close()
+
+
+def set_params(default_params, configs, excluded_keys=[]):
+    """
+    Helper function to set params.
+    This is generally used in the model's "make_network" function.
+    The method tries to use param's value in configs to replace the corresponding
+    value in default_params.
+
+    Parameters
+    ----------
+    default_params: dict[str: float]
+      A dict of default params with name (key) and value (value).
+    configs: dict[str: float]
+      Config.
+    excluded_keys: list[str]
+      Keys to exclude in configs.
+    """
+    for key in default_params.keys():
+        if key not in excluded_keys and key in configs:
+            default_params[key] = configs[key]
+    return default_params
