@@ -33,7 +33,7 @@ class GAN(BaseModel):
         self.device_id, self.device_ids, self.device = utils.parse_device(configs["Train"]["device"])
 
         # Define the loss function
-        self.gan_loss_name = GANLoss(configs["Train"]["GAN_loss"])
+        self.gan_loss_name = configs["Train"]["GAN_loss"]
         if isinstance(self.gan_loss_name, dict):
             self.gan_loss_name = list(self.gan_loss_name.keys())
             if len(self.gan_loss_name) != 1:
