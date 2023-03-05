@@ -25,10 +25,10 @@ class PlainBlock(nn.Module):
 @register.name_to_model.register("PlainNet")
 class PlainNet(nn.Module):
 
-    def __init__(self, block, n_block_list, stride_list, in_channels, hidden_channels, kernel_size,
+    def __init__(self, block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size,
                  norm, act, bias, num_classes, dropout, conv=nnblock.Conv2d):
         super().__init__()
-        self.convs, out_channels = PlainNet.make_backbone(block, n_block_list, stride_list, in_channels, hidden_channels,
+        self.convs, out_channels = PlainNet.make_backbone(block, n_blocks_list, stride_list, in_channels, hidden_channels,
                                                           kernel_size, norm, act, bias, dropout, conv)
         # For binary classification task, we use BCE loss so only one output logit is needed.
         self.num_classes = num_classes
@@ -47,7 +47,7 @@ class PlainNet(nn.Module):
         return output
 
     @staticmethod
-    def _make_palin_part(block, in_channels, hidden_channels, kernel_size, stride, norm, act, bias, n_blocks, dropout, conv=nnblock.Conv2d):
+    def _make_plain_part(block, in_channels, hidden_channels, kernel_size, stride, norm, act, bias, n_blocks, dropout, conv=nnblock.Conv2d):
         # The first block is with the specified "stride", and all others are with stride=1.
         strides = [stride] + [1] * (n_blocks - 1)
         layers = []
@@ -57,13 +57,13 @@ class PlainNet(nn.Module):
         return layers
 
     @staticmethod
-    def make_backbone(block, n_block_list, stride_list, in_channels, hidden_channels, kernel_size,
+    def make_backbone(block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size,
                       norm, act, bias, dropout, conv=nnblock.Conv2d):
         convs = []
-        for i, (n_blocks, stride) in enumerate(zip(n_block_list, stride_list)):
+        for i, (n_blocks, stride) in enumerate(zip(n_blocks_list, stride_list)):
             if i != 0:
                 hidden_channels = in_channels * stride
-            convs += PlainNet._make_palin_part(block, in_channels, hidden_channels, kernel_size, stride, norm, act, bias, n_blocks, dropout, conv)
+            convs += PlainNet._make_plain_part(block, in_channels, hidden_channels, kernel_size, stride, norm, act, bias, n_blocks, dropout, conv)
             in_channels = hidden_channels
 
         convs = nn.Sequential(*convs)
