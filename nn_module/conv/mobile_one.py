@@ -1,5 +1,5 @@
-import torch.nn as nn
 import functools
+import torch.nn as nn
 from torch.nn.init import dirac_
 
 import register
