@@ -4,7 +4,6 @@ import logging
 import torch.nn as nn
 import torch.optim as opt
 from logging import handlers
-from functools import partial
 import matplotlib.pyplot as plt
 from ptflops import get_model_complexity_info
 import torchvision.transforms as transforms
@@ -25,87 +24,12 @@ class Identity(nn.Module):
         return x
 
 
-class IdentityNorm(nn.Module):
-    """
-    Identity norm.
-    This is generally used as "Identity norm" in networks for
-    convenient implementation of "no normalization".
-    """
-
-    def __init__(self, in_channels):
-        super(IdentityNorm, self).__init__()
-
-    def forward(self, x):
-        return x
-
-
 def load_yaml_file(file_path):
     with open(file_path, mode="r", encoding="utf-8") as file:
         data = file.read()
 
     data = yaml.load(data, Loader=yaml.FullLoader)
     return data
-
-
-NORMS = {
-    "BatchNorm": nn.BatchNorm2d,
-    "IdentityNorm": IdentityNorm,
-}
-
-
-def get_norm(norm_type):
-    def get_norm_by_name(name):
-        if name in NORMS:
-            return NORMS[name]
-        else:
-            raise NotImplementedError
-
-    if isinstance(norm_type, str):
-        norm = get_norm_by_name(norm_type)
-    else:
-        # "norm_type" is a dict
-        norm_name = list(norm_type.keys())
-        if len(norm_name) > 1:
-            raise Exception("Not support more than one norm method!")
-        if len(norm_name) == 0:
-            raise Exception("At least one norm method must be specified!")
-        norm_name = norm_name[0]
-        norm = get_norm_by_name(norm_name)
-        norm_configs = norm_type[norm_name]
-        norm = partial(norm, **norm_configs)
-    return norm
-
-
-ACTS = {
-    "Identity": Identity,
-    "Relu": nn.ReLU,
-    "ReLU": nn.ReLU,
-    "LeakyRelu": nn.LeakyReLU,
-    "LeakyReLU": nn.LeakyReLU,
-}
-
-
-def get_activation(act_type):
-    def get_act_by_name(name):
-        if name in ACTS:
-            return ACTS[name]
-        else:
-            raise NotImplementedError
-
-    if isinstance(act_type, str):
-        act = get_act_by_name(act_type)
-    else:
-        # "act_type" is a dict
-        act_name = list(act_type.keys())
-        if len(act_name) > 1:
-            raise Exception("Not support more than one activation function!")
-        if len(act_name) == 0:
-            raise Exception("At least one activation function must be specified!")
-        act_name = act_name[0]
-        act = get_act_by_name(act_name)
-        act_configs = act_type[act_name]
-        act = partial(act, **act_configs)
-    return act
 
 
 def get_transformations(argumentation_configs):
