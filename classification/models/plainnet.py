@@ -2,19 +2,19 @@ import torch.nn as nn
 
 import register
 from classification import utils
-from classification import nnblock
-from classification.models import tools
+from nn_module.conv.convs import Conv2d
+from nn_module.norm.dispatch_norm import DispatchNorm
 
 
 class PlainBlock(nn.Module):
 
-    def __init__(self, in_channels, out_channels, kernel_size, stride, norm, act, bias, dropout=.0, conv=nnblock.Conv2d):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, norm, act, bias, dropout=.0, conv=Conv2d):
         super().__init__()
         p = int((kernel_size - 1) / 2)
         self.stride = stride
         self.convs = nn.Sequential(
             conv(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
-            norm(out_channels),
+            DispatchNorm(norm, num_features=out_channels),
             act(),
             nn.Dropout(dropout))
 
@@ -26,7 +26,7 @@ class PlainBlock(nn.Module):
 class PlainNet(nn.Module):
 
     def __init__(self, block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size,
-                 norm, act, bias, num_classes, dropout, conv=nnblock.Conv2d):
+                 norm, act, bias, num_classes, dropout, conv=Conv2d):
         super().__init__()
         self.convs, out_channels = PlainNet.make_backbone(block, n_blocks_list, stride_list, in_channels, hidden_channels,
                                                           kernel_size, norm, act, bias, dropout, conv)
@@ -47,7 +47,7 @@ class PlainNet(nn.Module):
         return output
 
     @staticmethod
-    def _make_plain_part(block, in_channels, hidden_channels, kernel_size, stride, norm, act, bias, n_blocks, dropout, conv=nnblock.Conv2d):
+    def _make_plain_part(block, in_channels, hidden_channels, kernel_size, stride, norm, act, bias, n_blocks, dropout, conv=Conv2d):
         # The first block is with the specified "stride", and all others are with stride=1.
         strides = [stride] + [1] * (n_blocks - 1)
         layers = []
@@ -58,7 +58,7 @@ class PlainNet(nn.Module):
 
     @staticmethod
     def make_backbone(block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size,
-                      norm, act, bias, dropout, conv=nnblock.Conv2d):
+                      norm, act, bias, dropout, conv=Conv2d):
         convs = []
         for i, (n_blocks, stride) in enumerate(zip(n_blocks_list, stride_list)):
             if i != 0:
@@ -71,9 +71,9 @@ class PlainNet(nn.Module):
 
     @staticmethod
     def make_network(configs):
-        conv = tools.get_conv(configs)
-        norm = utils.get_norm(configs["norm"])
-        act = utils.get_activation(configs["act"])
+        conv = register.get_conv(configs)
+        norm = register.get_norm(configs["norm"])
+        act = register.get_activation(configs["act"])
         block = PlainBlock
 
         default_params = {
