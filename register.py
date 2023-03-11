@@ -10,7 +10,7 @@ MODEL_MODULES = {
     "classification/models": "classification.models.",
     "gan/models"           : "gan.models.",
     "nn_module/conv"       : "nn_module.conv.",
-    "nn_module/norm"       : "nn_module.norm."
+    "nn_module/norm"       : "nn_module.norm.",
 }
 
 
@@ -82,7 +82,7 @@ def get_norm(norm_type):
     Helper function to get norm Class using their name with args.
 
     Parameters
-    __________
+    ----------
     norm_type: str or dict
       If norm_type is str, it is inferred as the name of norm method.
       We get the Class using the dict NAME_TO_NORMS.
