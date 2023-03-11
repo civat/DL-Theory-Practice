@@ -2,6 +2,7 @@ import torch.nn as nn
 
 import register
 from classification import utils
+from nn_module.norm.dispatch_norm import DispatchNorm
 
 
 @register.name_to_model.register("PlainetGenVec")
@@ -41,7 +42,7 @@ class PlainetGenVec(nn.Module):
             hidden_channels = int(in_channels / stride)
             convs += [
                 nn.ConvTranspose2d(in_channels, hidden_channels, kernel_size=kernel_size_up, stride=stride, bias=bias, padding=p),
-                norm(hidden_channels),
+                DispatchNorm(norm, num_features=hidden_channels),
                 act(),
                 nn.Dropout(dropout),
             ]
@@ -50,7 +51,7 @@ class PlainetGenVec(nn.Module):
             hidden_channels = int(in_channels / stride)
             convs += [
                 nn.ConvTranspose2d(in_channels, hidden_channels, kernel_size=kernel_size_up, stride=stride, bias=bias, padding=p),
-                norm(hidden_channels),
+                DispatchNorm(norm, num_features=hidden_channels),
                 act(),
                 nn.Dropout(dropout),
                 nn.Conv2d(hidden_channels, out_channels, kernel_size=kernel_size_eq, stride=1, bias=bias, padding=int(kernel_size_eq // 2))
@@ -66,8 +67,8 @@ class PlainetGenVec(nn.Module):
 
     @staticmethod
     def make_network(configs):
-        norm = utils.get_norm(configs["norm"])
-        act = utils.get_activation(configs["act"])
+        norm = register.get_norm(configs["norm"])
+        act = register.get_activation(configs["act"])
 
         default_params = {
             "input_dim"      : 128,

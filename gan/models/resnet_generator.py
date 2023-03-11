@@ -3,6 +3,7 @@ import torch.nn.functional as F
 
 import register
 from classification import utils
+from nn_module.norm.dispatch_norm import DispatchNorm
 
 
 class ResBlockTranspose(nn.Module):
@@ -67,22 +68,22 @@ class ResBlockTranspose(nn.Module):
         if not pre_act:
             self.convs = [
                 nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size_up, stride=stride, padding=p, padding_mode=padding_mode, bias=bias),
-                norm(out_channels),
+                DispatchNorm(norm, num_features=out_channels),
                 act(),
                 nn.Dropout(dropout),
                 nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size_eq, stride=1, padding=int(kernel_size_eq // 2), padding_mode=padding_mode, bias=bias),
             ]
             if not output_layer:
-                self.convs += [norm(out_channels)]
+                self.convs += [DispatchNorm(norm, num_features=out_channels)]
             self.convs = nn.Sequential(*self.convs)
 
         else:
             self.convs = nn.Sequential(
-                norm(in_channels),
+                DispatchNorm(norm, num_features=in_channels),
                 act(),
                 nn.Dropout(dropout),
                 nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size_up, stride=stride, padding=p, padding_mode=padding_mode, bias=bias),
-                norm(out_channels),
+                DispatchNorm(norm, num_features=out_channels),
                 act(),
                 nn.Dropout(dropout),
                 nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size_eq, stride=1, padding=int(kernel_size_eq // 2), padding_mode=padding_mode, bias=bias),
@@ -96,11 +97,11 @@ class ResBlockTranspose(nn.Module):
                     if not pre_act:
                         self.shortcut = nn.Sequential(
                             nn.ConvTranspose2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
-                            norm(out_channels)
+                            DispatchNorm(norm, num_features=out_channels)
                         )
                     else:
                         self.shortcut = nn.Sequential(
-                            norm(in_channels),
+                            DispatchNorm(norm, num_features=in_channels),
                             nn.ConvTranspose2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
                         )
                 else:
@@ -208,7 +209,7 @@ class ResnetDecoder(nn.Module):
                 ]
             else:
                 convs += [
-                    norm(in_channels),
+                    DispatchNorm(norm, num_features=in_channels),
                     act(),
                     nn.Conv2d(hidden_channels, out_channels, kernel_size_eq, padding=int(kernel_size_eq // 2), padding_mode=padding_mode, bias=bias)
                 ]
@@ -384,8 +385,8 @@ class ResNetGenVec(nn.Module):
 
     @staticmethod
     def make_network(configs):
-        norm = utils.get_norm(configs["norm"])
-        act = utils.get_activation(configs["act"])
+        norm = register.get_norm(configs["norm"])
+        act = register.get_activation(configs["act"])
 
         default_params = {
             "input_dim": 128,
