@@ -1,7 +1,17 @@
 import os
 import importlib
+import torch.nn as nn
+from functools import partial
 
-MODEL_MODULES = ["classification", "gan"]
+from classification import utils
+
+
+MODEL_MODULES = {
+    "classification/models": "classification.models.",
+    "gan/models"           : "gan.models.",
+    "nn_module/conv"       : "nn_module.conv.",
+    "nn_module/norm"       : "nn_module.norm."
+}
 
 
 class Register:
@@ -44,16 +54,12 @@ class Register:
 
 def import_all_modules_for_register():
     """Import all modules for register."""
-    for base_dir in MODEL_MODULES:
-        files = os.listdir(os.path.join(os.getcwd(), base_dir, "models"))
+    for base_dir in MODEL_MODULES.keys():
+        files = os.listdir(os.path.join(os.getcwd(), base_dir))
         for name in files:
             name = name.split(".")[0]
-            full_name = base_dir + ".models." + name
+            full_name = MODEL_MODULES[base_dir] + name
             importlib.import_module(full_name)
-
-
-name_to_model = Register("name_to_model")
-import_all_modules_for_register()
 
 
 def make_network(model_config):
@@ -69,3 +75,99 @@ def make_network(model_config):
             sub_configs = model_config[name]
             model = name_to_model[name].make_network(sub_configs)
             return model, sub_configs
+
+
+def get_norm(norm_type):
+    """
+    Helper function to get norm Class using their name with args.
+
+    Parameters
+    __________
+    norm_type: str or dict
+      If norm_type is str, it is inferred as the name of norm method.
+      We get the Class using the dict NAME_TO_NORMS.
+      Example:
+        norm: "BatchNorm"
+
+      If norm_type is dict, it is inferred as norm name with some
+      initialization args.
+      We can use this method to provide some args which are irrelevant to
+      input size, such as eps and momentum for BatchNorm.
+      Examples:
+        norm:
+          BatchNorm:
+            eps: 1e-5,
+            momentum: 0.1
+    """
+    def get_norm_by_name(name):
+        if name in NAME_TO_NORMS:
+            return NAME_TO_NORMS[name]
+        else:
+            raise NotImplementedError
+
+    if isinstance(norm_type, str):
+        norm = get_norm_by_name(norm_type)
+    else:
+        # "norm_type" is a dict
+        norm_name = list(norm_type.keys())
+        if len(norm_name) > 1:
+            raise Exception("Not support more than one norm method!")
+        if len(norm_name) == 0:
+            raise Exception("At least one norm method must be specified!")
+        norm_name = norm_name[0]
+        norm = get_norm_by_name(norm_name)
+        norm_configs = norm_type[norm_name]
+        norm = partial(norm, **norm_configs)
+    return norm
+
+
+def get_activation(act_type):
+    def get_act_by_name(name):
+        if name in NAME_TO_ACTS:
+            return NAME_TO_ACTS[name]
+        else:
+            raise NotImplementedError
+
+    if isinstance(act_type, str):
+        act = get_act_by_name(act_type)
+    else:
+        # "act_type" is a dict
+        act_name = list(act_type.keys())
+        if len(act_name) > 1:
+            raise Exception("Not support more than one activation function!")
+        if len(act_name) == 0:
+            raise Exception("At least one activation function must be specified!")
+        act_name = act_name[0]
+        act = get_act_by_name(act_name)
+        act_configs = act_type[act_name]
+        act = partial(act, **act_configs)
+    return act
+
+
+def get_conv(configs):
+    conv_name = configs["conv"] if "conv" in configs else "Conv2d"
+    assert conv_name in NAME_TO_CONVS.keys()
+    conv = NAME_TO_CONVS[conv_name]
+    conv = conv.get_conv(configs)
+    return conv
+
+
+# Registration for model
+name_to_model = Register("name_to_model")
+
+# Registration for norm
+NAME_TO_NORMS = Register("name_to_norms")
+NAME_TO_NORMS["BatchNorm"] = nn.BatchNorm2d
+
+# Registration for activation
+NAME_TO_ACTS = Register("name_to_acts")
+NAME_TO_ACTS["Identity"] = utils.Identity
+NAME_TO_ACTS["Relu"] = nn.ReLU
+NAME_TO_ACTS["ReLU"] = nn.ReLU
+NAME_TO_ACTS["LeakyRelu"] = nn.LeakyReLU
+NAME_TO_ACTS["LeakyReLU"] = nn.LeakyReLU
+
+# Registration for conv
+NAME_TO_CONVS = Register("name_to_convs")
+
+import_all_modules_for_register()
