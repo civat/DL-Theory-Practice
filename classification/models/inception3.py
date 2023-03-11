@@ -362,7 +362,5 @@ class Inception3(nn.Module):
             "dropout"         : 0.5,
             "mode"            : "train",
         }
-        for key in default_params.keys():
-            if key not in ["conv", "block", "norm", "act"] and key in configs:
-                default_params[key] = configs[key]
+        default_params = utils.set_params(default_params, configs, excluded_keys=[])
         return Inception3(**default_params)

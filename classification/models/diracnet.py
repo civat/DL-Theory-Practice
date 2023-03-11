@@ -114,8 +114,8 @@ class DiracNet(nn.Module):
 
     @staticmethod
     def make_network(configs):
-        norm = utils.get_norm(configs["norm"])
-        act = utils.get_activation(configs["act"])
+        norm = register.get_norm(configs["norm"])
+        act = register.get_activation(configs["act"])
 
         default_params = {
             "in_channels": 3,
@@ -133,8 +133,5 @@ class DiracNet(nn.Module):
             "num_classes": 10,
         }
 
-        for key in default_params.keys():
-            if key not in ["norm", "act"] and key in configs:
-                default_params[key] = configs[key]
-
+        default_params = utils.set_params(default_params, configs, excluded_keys=["norm", "act"])
         return DiracNet(**default_params)
