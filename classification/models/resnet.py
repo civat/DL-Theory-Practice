@@ -3,8 +3,8 @@ import torch.nn.functional as F
 
 import register
 from classification import utils
-from classification import nnblock
-from classification.models import tools
+from nn_module.conv.convs import Conv2d
+from nn_module.norm.dispatch_norm import DispatchNorm
 
 
 class LambdaLayer(nn.Module):
@@ -25,7 +25,7 @@ class ResBlock(nn.Module):
     expansion = 1
 
     def __init__(self, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut,
-                 pre_act, dropout, conv=nnblock.Conv2d):
+                 pre_act, dropout, conv=Conv2d, add=True):
         """
         Initialize ResBlock.
         This is a generalized building block as we can implement
@@ -71,7 +71,10 @@ class ResBlock(nn.Module):
         dropout: float
           Dropout rate.
         conv: nn.Module
-          Type of Convolution. See classification/models/tools.py for possible conv type.
+          Type of Convolution.
+        add: bool
+          True if addition is used to fuse shortcut and mainstream;
+          False if subtraction is used.
         """
         super(ResBlock, self).__init__()
 
@@ -81,22 +84,24 @@ class ResBlock(nn.Module):
         out_channels = int(in_channels * stride * channel_span)
         self.stride = stride
         self.use_short_cut = use_short_cut
+        self.add = add
+
         if not pre_act:
             self.convs = nn.Sequential(
                 conv(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
-                norm(out_channels),
+                DispatchNorm(norm, num_features=out_channels),
                 act(),
                 nn.Dropout(dropout),
                 conv(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, bias=bias),
-                norm(out_channels)
+                DispatchNorm(norm, num_features=out_channels),
             )
         else:
             self.convs = nn.Sequential(
-                norm(in_channels),
+                DispatchNorm(norm, num_features=in_channels),
                 act(),
                 nn.Dropout(dropout),
                 conv(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=p, bias=bias),
-                norm(out_channels),
+                DispatchNorm(norm, num_features=out_channels),
                 act(),
                 nn.Dropout(dropout),
                 conv(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=p, bias=bias),
@@ -110,11 +115,11 @@ class ResBlock(nn.Module):
                     if not pre_act:
                         self.shortcut = nn.Sequential(
                             conv(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
-                            norm(out_channels)
+                            DispatchNorm(norm, num_features=out_channels)
                         )
                     else:
                         self.shortcut = nn.Sequential(
-                            norm(in_channels),
+                            DispatchNorm(norm, num_features=in_channels),
                             conv(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
                         )
                 elif down_sample == "interpolate":
@@ -136,14 +141,20 @@ class ResBlock(nn.Module):
                 skip = self.shortcut(x)
                 if skip.size(-1) != x1.size(-1) or skip.size(-2) != x1.size(-2):
                     skip = F.interpolate(skip, size=(x1.size(-2), x1.size(-1)))
-                x1 += skip
+                if self.add:
+                    x1 += skip
+                else:
+                    x1 -= skip
             else:
                 # The only reason that we get here is the down_sample=="interpolate".
                 # So we implement the method here.
                 h, w = x1.size(-2), x1.size(-1)
                 x = F.interpolate(x, size=(h, w), mode="bilinear")
                 x = x.repeat(1, self.stride, 1, 1)
-                x1 += x
+                if self.add:
+                    x1 += x
+                else:
+                    x1 -= x
 
         return x1
 
@@ -152,7 +163,7 @@ class Bottleneck(nn.Module):
     expansion = 4
 
     def __init__(self, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut,
-                 pre_act, dropout, conv=nnblock.Conv2d):
+                 pre_act, dropout, conv=Conv2d):
         """
         Initialize Bottleneck.
 
@@ -207,29 +218,29 @@ class Bottleneck(nn.Module):
         if not pre_act:
             self.convs = nn.Sequential(
                 conv(in_channels, hidden_channels, kernel_size=1, bias=bias),
-                norm(hidden_channels),
+                DispatchNorm(norm, num_features=hidden_channels),
                 act(),
                 nn.Dropout(dropout),
                 conv(hidden_channels, hidden_channels, stride=stride, kernel_size=kernel_size, padding=p,
                      bias=bias),
-                norm(hidden_channels),
+                DispatchNorm(norm, num_features=hidden_channels),
                 act(),
                 nn.Dropout(dropout),
                 conv(hidden_channels, out_channels, kernel_size=1, bias=bias),
-                norm(out_channels),
+                DispatchNorm(norm, num_features=out_channels),
             )
         else:
             self.convs = nn.Sequential(
-                norm(in_channels),
+                DispatchNorm(norm, num_features=in_channels),
                 act(),
                 nn.Dropout(dropout),
                 conv(in_channels, hidden_channels, kernel_size=1, bias=bias),
-                norm(hidden_channels),
+                DispatchNorm(norm, num_features=hidden_channels),
                 act(),
                 nn.Dropout(dropout),
                 conv(hidden_channels, hidden_channels, stride=stride, kernel_size=kernel_size, padding=p,
                      bias=bias),
-                norm(hidden_channels),
+                DispatchNorm(norm, num_features=hidden_channels),
                 act(),
                 nn.Dropout(dropout),
                 conv(hidden_channels, out_channels, kernel_size=1, bias=bias),
@@ -243,11 +254,11 @@ class Bottleneck(nn.Module):
                     if not pre_act:
                         self.shortcut = nn.Sequential(
                             conv(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
-                            norm(out_channels)
+                            DispatchNorm(norm, num_features=out_channels),
                         )
                     else:
                         self.shortcut = nn.Sequential(
-                            norm(in_channels),
+                            DispatchNorm(norm, num_features=in_channels),
                             conv(in_channels, out_channels, kernel_size=1, stride=stride, bias=bias),
                         )
                 elif down_sample == "interpolate":
@@ -295,7 +306,7 @@ class ResNet(nn.Module):
 
     def __init__(self, block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size,
                  kernel_size_first, stride_first, use_bn_first, use_act_first, norm, act, down_sample,
-                 bias, use_short_cut, use_maxpool, num_classes, pre_act, dropout, use_out_act, conv=nnblock.Conv2d):
+                 bias, use_short_cut, use_maxpool, num_classes, pre_act, dropout, use_out_act, conv=Conv2d, add=True):
         """
         Parameters
         ----------
@@ -360,7 +371,7 @@ class ResNet(nn.Module):
                                                         kernel_size, kernel_size_first, stride_first, use_bn_first,
                                                         use_act_first, norm, act, down_sample, bias, use_short_cut,
                                                         use_maxpool,
-                                                        pre_act, dropout, use_out_act, conv)
+                                                        pre_act, dropout, use_out_act, conv, add)
         # For binary classification task, we use BCE loss so only one output logit is needed.
         self.num_classes = num_classes
         if num_classes == 2:
@@ -380,7 +391,7 @@ class ResNet(nn.Module):
 
     @staticmethod
     def _make_res_part(block, in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias,
-                       use_short_cut, n_blocks, pre_act, dropout, use_out_act, conv=nnblock.Conv2d):
+                       use_short_cut, n_blocks, pre_act, dropout, use_out_act, conv=Conv2d, add=True):
         """
         Utility function for constructing res part in resnet.
 
@@ -442,7 +453,7 @@ class ResNet(nn.Module):
             if i == 0:
                 layers.append(
                     block(in_channels, channel_span, kernel_size, stride, norm, act, down_sample, bias, use_short_cut,
-                          pre_act, dropout, conv))
+                          pre_act, dropout, conv, add))
                 if block.expansion == 1:
                     in_channels = int(in_channels * stride * block.expansion)
                 else:
@@ -450,7 +461,7 @@ class ResNet(nn.Module):
             else:
                 layers.append(
                     block(in_channels, 1 / float(block.expansion), kernel_size, stride, norm, act, down_sample, bias,
-                          use_short_cut, pre_act, dropout, conv))
+                          use_short_cut, pre_act, dropout, conv, add))
             if not pre_act and use_out_act:
                 layers.append(act())
 
@@ -459,7 +470,7 @@ class ResNet(nn.Module):
     @staticmethod
     def make_backbone(block, n_blocks_list, stride_list, in_channels, hidden_channels, kernel_size,
                       kernel_size_first, stride_first, use_bn_first, use_act_first, norm, act, down_sample,
-                      bias, use_short_cut, use_maxpool, pre_act, dropout, use_out_act, conv=nnblock.Conv2d):
+                      bias, use_short_cut, use_maxpool, pre_act, dropout, use_out_act, conv=Conv2d, add=True):
         """
         Construct resnet-like backbone.
 
@@ -542,19 +553,19 @@ class ResNet(nn.Module):
             if i == 0:
                 convs += ResNet._make_res_part(block, hidden_channels, 1, kernel_size, stride, norm, act,
                                                down_sample, bias, use_short_cut, n_blocks, pre_act, dropout,
-                                               use_out_act, conv)
+                                               use_out_act, conv, add)
                 if block.expansion == 1:
                     hidden_channels = hidden_channels * stride
             else:
                 if block.expansion == 4:
                     convs += ResNet._make_res_part(block, hidden_channels * 4, 0.5, kernel_size,
                                                    stride, norm, act, down_sample, bias, use_short_cut, n_blocks,
-                                                   pre_act, dropout, use_out_act, conv)
+                                                   pre_act, dropout, use_out_act, conv, add)
                     hidden_channels = hidden_channels * 2
                 else:
                     convs += ResNet._make_res_part(block, hidden_channels, 1, kernel_size, stride, norm, act,
                                                    down_sample,
-                                                   bias, use_short_cut, n_blocks, pre_act, dropout, use_out_act, conv)
+                                                   bias, use_short_cut, n_blocks, pre_act, dropout, use_out_act, conv, add)
                     hidden_channels = hidden_channels * stride
 
         convs = nn.Sequential(*convs)
@@ -562,9 +573,9 @@ class ResNet(nn.Module):
 
     @staticmethod
     def make_network(configs):
-        conv = tools.get_conv(configs)
-        norm = utils.get_norm(configs["norm"])
-        act = utils.get_activation(configs["act"])
+        conv = register.get_conv(configs)
+        norm = register.get_norm(configs["norm"])
+        act = register.get_activation(configs["act"])
 
         if configs["block"] == "ResBlock":
             block = ResBlock
@@ -595,6 +606,7 @@ class ResNet(nn.Module):
             "pre_act": False,
             "dropout": 0,
             "use_out_act": True,
+            "add": True,
         }
 
         default_params = utils.set_params(default_params, configs, excluded_keys=["conv", "block", "norm", "act"])
