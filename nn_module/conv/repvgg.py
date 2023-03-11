@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import functools
 import numpy as np
+
+import register
 from classification.models.se import SEBlock
 
 
@@ -15,6 +17,7 @@ def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     return result
 
 
+@register.NAME_TO_CONVS.register("RepVGGBlock")
 class RepVGGBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size,

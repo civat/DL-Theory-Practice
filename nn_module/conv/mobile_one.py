@@ -1,9 +1,11 @@
 import torch.nn as nn
 import functools
 from torch.nn.init import dirac_
-from classification.models.dbb import conv_bn
-from classification.models.dbb import transI_fusebn
-from classification.models.dbb import transVI_multiscale
+
+import register
+from nn_module.conv.dbb import conv_bn
+from nn_module.conv.dbb import transI_fusebn
+from nn_module.conv.dbb import transVI_multiscale
 
 
 class MobileOneBlockD(nn.Module):
@@ -148,6 +150,7 @@ class MobileOneBlockP(nn.Module):
         self.__delattr__('bn')
 
 
+@register.NAME_TO_CONVS.register("MobileOneBlock")
 class MobileOneBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size,
