@@ -6,6 +6,8 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
+import register
+
 
 def transI_fusebn(kernel, bn):
     gamma = bn.weight
@@ -136,6 +138,7 @@ class BNAndPadLayer(nn.Module):
         return self.bn.eps
 
 
+@register.NAME_TO_CONVS.register("DBBlock")
 class DiverseBranchBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size,
