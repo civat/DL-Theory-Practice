@@ -85,20 +85,20 @@ def get_norm(norm_type):
     Parameters
     ----------
     norm_type: str or dict
-      If norm_type is str, it is inferred as the name of norm method.
-      We get the Class using the dict NAME_TO_NORMS.
-      Example:
-        norm: "BatchNorm"
+        If norm_type is str, it is inferred as the name of norm method.
+        We get the Class using the dict NAME_TO_NORMS.
+        Example:
+            norm: "BatchNorm"
 
-      If norm_type is dict, it is inferred as norm name with some
-      initialization args.
-      We can use this method to provide some args which are irrelevant to
-      input size, such as eps and momentum for BatchNorm.
-      Examples:
-        norm:
-          BatchNorm:
-            eps: 1e-5,
-            momentum: 0.1
+        If norm_type is dict, it is inferred as norm name with some
+        initialization args.
+        We can use this method to provide some args which are irrelevant to
+        input size, such as eps and momentum for BatchNorm.
+        Examples:
+            norm:
+              BatchNorm:
+                eps: 1e-5,
+                momentum: 0.1
     """
     def get_norm_by_name(name):
         if name in NAME_TO_NORMS:

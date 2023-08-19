@@ -9,10 +9,44 @@ import register
 
 @register.NAME_TO_CONVS.register("ACBlock")
 class ACBlock(nn.Module):
+    """
+    ACBlock is the basic building block of ACNet.
+    See the paper https://arxiv.org/abs/1908.03930 for more details.
+    """
 
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
                  bias=True, padding_mode='zeros', deploy=False, use_affine=True, reduce_gamma=False,
                  gamma_init=None):
+        """
+        Parameters
+        ----------
+        in_channels : int
+            Number of input channels.
+        out_channels : int
+            Number of output channels.
+        kernel_size : int
+            Size of the convolving kernel.
+        stride : int
+            Stride of the convolution. Default: 1
+        padding : int
+            Padding added to both sides of the input. Default: 0
+        dilation : int
+            Spacing between kernel elements. Default: 1
+        groups : int
+            Number of blocked connections from input channels to output channels. Default: 1
+        bias : bool
+            If ``True``, adds a learnable bias to the output. Default: ``True``
+        padding_mode : str
+            Accepted values `zeros` and `circular` Default: `zeros`
+        deploy : bool
+            If ``True``, use the deploy version of ACBlock. Default: ``False``.
+        use_affine : bool
+            If ``True``, use affine operation in BatchNorm. Default: ``True``.
+        reduce_gamma : bool
+            If ``True``, reduce the gamma of BatchNorm layers. Default: ``False``.
+        gamma_init : float
+            The initial value of gamma of BatchNorm layers. Default: ``None``.
+        """
         super(ACBlock, self).__init__()
         self.deploy = deploy
         if deploy:
@@ -162,15 +196,15 @@ class ACBlock(nn.Module):
     @staticmethod
     def get_conv(configs):
         default_params = {
-            "kernel_size"  : 3,
-            "padding"      : 0,
-            "dilation"     : 1,
-            "groups"       : 1,
-            "bias"         : True,
-            "padding_mode" : "zeros",
-            "use_affine"   : True,
-            "reduce_gamma" : False,
-            "gamma_init"   : None
+            "kernel_size" : 3,
+            "padding"     : 0,
+            "dilation"    : 1,
+            "groups"      : 1,
+            "bias"        : True,
+            "padding_mode": "zeros",
+            "use_affine"  : True,
+            "reduce_gamma": False,
+            "gamma_init"  : None
         }
         for key in default_params.keys():
             if key in configs:
