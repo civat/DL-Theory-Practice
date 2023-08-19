@@ -23,13 +23,13 @@ class Conv2d(nn.Module):
     @staticmethod
     def get_conv(configs):
         default_params = {
-            "kernel_size"   : 3,
-            "padding"       : 0,
-            "dilation"      : 1,
-            "groups"        : 1,
-            "bias"          : True,
-            "padding_mode"  : "zeros",
-            "spectral_norm" : False,
+            "kernel_size"  : 3,
+            "padding"      : 0,
+            "dilation"     : 1,
+            "groups"       : 1,
+            "bias"         : True,
+            "padding_mode" : "zeros",
+            "spectral_norm": False,
         }
         default_params = utils.set_params(default_params, configs)
         conv = functools.partial(Conv2d, **default_params)
@@ -67,6 +67,7 @@ class Conv2dTranspose(nn.Module):
         return conv
 
 
+@register.NAME_TO_CONVS.register("Conv2dUp")
 class Conv2dUp(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding=0, dilation=1, groups=1, bias=True,
@@ -74,7 +75,7 @@ class Conv2dUp(nn.Module):
         super().__init__()
         self.up = nn.Upsample(scale_factor=stride, mode=mode)
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=padding, dilation=dilation,
-                                groups=groups, bias=bias, padding_mode=padding_mode)
+                              groups=groups, bias=bias, padding_mode=padding_mode)
 
         if spectral_norm:
             self.conv = SN(self.conv)
