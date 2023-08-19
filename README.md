@@ -11,17 +11,19 @@ Hi Friends:
 --------------------
 三方依赖（列出的是已测试版本。向下兼容的高版本也行）：
 
-PyTorch: 1.11.0
+Pillow: 9.5.0
 
-pyyaml：0.6.9
+ptflops：0.7
 
-ptflops：6.0
+pyyaml：6.0
+
+PyTorch: 2.0.0
+
+torchmetrics: 0.11.4
 
 scipy: 1.5.1
 
-Pillow: 7.2.0
-
-opencv: 4.5.5
+opencv-python: 4.5.5
 
 --------------------
 ## 更新日志
