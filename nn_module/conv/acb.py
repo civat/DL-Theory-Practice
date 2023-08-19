@@ -11,7 +11,7 @@ import register
 class ACBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
-                 bias=True,padding_mode='zeros', deploy=False, use_affine=True, reduce_gamma=False,
+                 bias=True, padding_mode='zeros', deploy=False, use_affine=True, reduce_gamma=False,
                  gamma_init=None):
         super(ACBlock, self).__init__()
         self.deploy = deploy
@@ -102,25 +102,26 @@ class ACBlock(nn.Module):
         return square_k, hor_b + ver_b + square_b
 
     def switch_to_deploy(self):
-        deploy_k, deploy_b = self.get_equivalent_kernel_bias()
-        self.deploy = True
-        self.fused_conv = nn.Conv2d(in_channels=self.square_conv.in_channels,
-                                    out_channels=self.square_conv.out_channels,
-                                    kernel_size=self.square_conv.kernel_size,
-                                    stride=self.square_conv.stride,
-                                    padding=self.square_conv.padding,
-                                    dilation=self.square_conv.dilation,
-                                    groups=self.square_conv.groups,
-                                    bias=True,
-                                    padding_mode=self.square_conv.padding_mode)
-        self.__delattr__('square_conv')
-        self.__delattr__('square_bn')
-        self.__delattr__('hor_conv')
-        self.__delattr__('hor_bn')
-        self.__delattr__('ver_conv')
-        self.__delattr__('ver_bn')
-        self.fused_conv.weight.data = deploy_k
-        self.fused_conv.bias.data = deploy_b
+        if not self.deploy:
+            deploy_k, deploy_b = self.get_equivalent_kernel_bias()
+            self.deploy = True
+            self.fused_conv = nn.Conv2d(in_channels=self.square_conv.in_channels,
+                                        out_channels=self.square_conv.out_channels,
+                                        kernel_size=self.square_conv.kernel_size,
+                                        stride=self.square_conv.stride,
+                                        padding=self.square_conv.padding,
+                                        dilation=self.square_conv.dilation,
+                                        groups=self.square_conv.groups,
+                                        bias=True,
+                                        padding_mode=self.square_conv.padding_mode)
+            self.__delattr__('square_conv')
+            self.__delattr__('square_bn')
+            self.__delattr__('hor_conv')
+            self.__delattr__('hor_bn')
+            self.__delattr__('ver_conv')
+            self.__delattr__('ver_bn')
+            self.fused_conv.weight.data = deploy_k
+            self.fused_conv.bias.data = deploy_b
 
     def init_gamma(self, gamma_value):
         init.constant_(self.square_bn.weight, gamma_value)
@@ -160,11 +161,16 @@ class ACBlock(nn.Module):
 
     @staticmethod
     def get_conv(configs):
-        k = configs["k"] if "k" in configs.keys() else 1
         default_params = {
-            "use_affine": True,
-            "reduce_gamma": False,
-            "gamma_init": None
+            "kernel_size"  : 3,
+            "padding"      : 0,
+            "dilation"     : 1,
+            "groups"       : 1,
+            "bias"         : True,
+            "padding_mode" : "zeros",
+            "use_affine"   : True,
+            "reduce_gamma" : False,
+            "gamma_init"   : None
         }
         for key in default_params.keys():
             if key in configs:
