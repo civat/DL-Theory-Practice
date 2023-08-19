@@ -104,7 +104,7 @@ def get_norm(norm_type):
         if name in NAME_TO_NORMS:
             return NAME_TO_NORMS[name]
         else:
-            raise NotImplementedError(f"The specified {name} is not implemented. The availabel values are {NAME_TO_NORMS.keys()}")
+            raise NotImplementedError(f"The specified {name} is not implemented. The available values are {NAME_TO_NORMS.keys()}")
 
     if norm_type is None:
         return get_norm_by_name("Identity")
@@ -129,7 +129,7 @@ def get_activation(act_type):
         if name in NAME_TO_ACTS:
             return NAME_TO_ACTS[name]
         else:
-            raise NotImplementedError(f"The specified {name} is not implemented. The availabel values are {NAME_TO_ACTS.keys()}")
+            raise NotImplementedError(f"The specified {name} is not implemented. The available values are {NAME_TO_ACTS.keys()}")
 
     if act_type is None:
         return get_act_by_name("Identity")
@@ -164,7 +164,7 @@ def get_conv(configs, conv_name=None):
             raise Exception("At least one Conv block must be specified!")
         conv_name = conv_name[0]
         if conv_name not in NAME_TO_CONVS.keys():
-            raise NotImplementedError(f"The specified {conv_name} is not implemented. The availabel values are {NAME_TO_CONVS.keys()}")
+            raise NotImplementedError(f"The specified {conv_name} is not implemented. The available values are {NAME_TO_CONVS.keys()}")
         conv_configs = conv_type[conv_name]
         conv = NAME_TO_CONVS[conv_name]
         conv = conv.get_conv(conv_configs)
