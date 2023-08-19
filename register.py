@@ -11,6 +11,7 @@ MODEL_MODULES = {
     "gan/models"           : "gan.models.",
     "nn_module/conv"       : "nn_module.conv.",
     "nn_module/norm"       : "nn_module.norm.",
+    "nn_module/act"        : "nn_module.act.",
 }
 
 
@@ -103,8 +104,10 @@ def get_norm(norm_type):
         if name in NAME_TO_NORMS:
             return NAME_TO_NORMS[name]
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"The specified {name} is not implemented. The availabel values are {NAME_TO_NORMS.keys()}")
 
+    if norm_type is None:
+        return get_norm_by_name("Identity")
     if isinstance(norm_type, str):
         norm = get_norm_by_name(norm_type)
     else:
@@ -126,8 +129,10 @@ def get_activation(act_type):
         if name in NAME_TO_ACTS:
             return NAME_TO_ACTS[name]
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"The specified {name} is not implemented. The availabel values are {NAME_TO_ACTS.keys()}")
 
+    if act_type is None:
+        return get_act_by_name("Identity")
     if isinstance(act_type, str):
         act = get_act_by_name(act_type)
     else:
@@ -144,11 +149,26 @@ def get_activation(act_type):
     return act
 
 
-def get_conv(configs):
-    conv_name = configs["conv"] if "conv" in configs else "Conv2d"
-    assert conv_name in NAME_TO_CONVS.keys()
-    conv = NAME_TO_CONVS[conv_name]
-    conv = conv.get_conv(configs)
+def get_conv(configs, conv_name=None):
+    conv_name = "conv" if conv_name is None else conv_name
+    conv_type = configs[conv_name] if conv_name in configs else "Conv2d"
+    if isinstance(conv_type, str):
+        assert conv_type in NAME_TO_CONVS, f"Conv type {conv_type} is not supported!"
+        conv = NAME_TO_CONVS[conv_type]
+        conv = conv.get_conv(configs={})  # As conv_type is str, we don't need to pass any args.
+    else:
+        conv_name = list(conv_type.keys())
+        if len(conv_name) > 1:
+            raise Exception("Not support more than one Conv block!")
+        if len(conv_name) == 0:
+            raise Exception("At least one Conv block must be specified!")
+        conv_name = conv_name[0]
+        if conv_name not in NAME_TO_CONVS.keys():
+            raise NotImplementedError(f"The specified {conv_name} is not implemented. The availabel values are {NAME_TO_CONVS.keys()}")
+        conv_configs = conv_type[conv_name]
+        conv = NAME_TO_CONVS[conv_name]
+        conv = conv.get_conv(conv_configs)
+
     return conv
 
 
@@ -161,7 +181,7 @@ NAME_TO_NORMS["BatchNorm"] = nn.BatchNorm2d
 
 # Registration for activation
 NAME_TO_ACTS = Register("name_to_acts")
-NAME_TO_ACTS["Identity"] = utils.Identity
+NAME_TO_ACTS["IdentityAct"] = utils.Identity
 NAME_TO_ACTS["Relu"] = nn.ReLU
 NAME_TO_ACTS["ReLU"] = nn.ReLU
 NAME_TO_ACTS["LeakyRelu"] = nn.LeakyReLU
