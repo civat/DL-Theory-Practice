@@ -76,7 +76,6 @@ class Conv2dUp(nn.Module):
         self.up = nn.Upsample(scale_factor=stride, mode=mode)
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=padding, dilation=dilation,
                               groups=groups, bias=bias, padding_mode=padding_mode)
-
         if spectral_norm:
             self.conv = SN(self.conv)
 
