@@ -98,13 +98,3 @@ class Conv2dUp(nn.Module):
         default_params = utils.set_params(default_params, configs)
         conv = functools.partial(Conv2dUp, **default_params)
         return conv
-
-
-def set_sepectral_norm(convs):
-    if isinstance(convs, Conv2d) or isinstance(convs, Conv2dTranspose):
-        return SN(convs)
-
-    for i, module in enumerate(convs):
-        if isinstance(module, Conv2d) or isinstance(module, Conv2dTranspose):
-            convs[i] = SN(module)
-    return convs
