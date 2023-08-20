@@ -40,12 +40,12 @@ class DiracConv2d(nn.Conv2d, DiracConv):
     It is user's responsibility to set correcting padding. Only stride=1 supported.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros'):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode="zeros"):
         if stride != 1:
             warnings.warn("DiracConv2d only supports stride=1 ! For case stride != 1, DiracConv2d still uses stride=1."
                           "So users need to ensure the correctness of the network when stride != 1 is specified.")
-        super().__init__(in_channels, out_channels, kernel_size, stride=1, padding=padding, dilation=dilation,
-                         groups=groups, bias=bias, padding_mode=padding_mode)
+        super().__init__(in_channels, out_channels, kernel_size, stride=1, padding=padding, dilation=dilation, groups=groups, bias=bias, padding_mode=padding_mode)
+        self.init_params(out_channels)
 
     def forward(self, input):
         return F.conv2d(input, self.transform_weight(), self.bias, self.stride, self.padding, self.dilation)
