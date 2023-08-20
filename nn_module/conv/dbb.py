@@ -140,20 +140,39 @@ class BNAndPadLayer(nn.Module):
 
 @register.NAME_TO_CONVS.register("DBBlock")
 class DiverseBranchBlock(nn.Module):
+    """
+    Diverse Branch Block in the paper:
+    https://openaccess.thecvf.com/content/CVPR2021/papers/Ding_Diverse_Branch_Block_Building_a_Convolution_as_an_Inception-Like_Unit_CVPR_2021_paper.pdf
+    """
 
-    def __init__(self, in_channels, out_channels, kernel_size,
-                 stride=1, padding=0, dilation=1, groups=1, bias=False,
-                 padding_mode='zeros', deploy=False, internal_channels_1x1_3x3=None,
-                 nonlinear=None, single_init=False
-                 ):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, deploy=False,
+                 internal_channels_1x1_3x3=None, single_init=False):
+        """
+        Parameters
+        ----------
+        in_channels : int
+            The number of input channels.
+        out_channels : int
+            The number of output channels.
+        kernel_size : int or tuple of int
+            The size of the kernel.
+        stride : int or tuple of int
+            The stride of the kernel.
+        padding : int or tuple of int
+            The padding of the input.
+        dilation : int or tuple of int
+            The dilation of the kernel.
+        groups : int
+            The number of groups.
+        deploy : bool
+            Whether to use the deploy version of the block.
+        internal_channels_1x1_3x3 : int
+            The number of internal channels for the 1x1 and 3x3 convolutions.
+        single_init : bool
+            Whether to use a single initialization for the 1x1 and 3x3 convolutions.
+        """
         super(DiverseBranchBlock, self).__init__()
         self.deploy = deploy
-
-        if nonlinear is None:
-            self.nonlinear = nn.Identity()
-        else:
-            self.nonlinear = nonlinear
-
         self.kernel_size = kernel_size
         self.out_channels = out_channels
         self.groups = groups
@@ -161,7 +180,7 @@ class DiverseBranchBlock(nn.Module):
 
         if deploy:
             self.dbb_reparam = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride,
-                                      padding=padding, dilation=dilation, groups=groups, bias=True)
+                                         padding=padding, dilation=dilation, groups=groups, bias=True)
 
         else:
             self.dbb_origin = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups)
@@ -180,7 +199,6 @@ class DiverseBranchBlock(nn.Module):
 
             self.dbb_avg.add_module('avgbn', nn.BatchNorm2d(out_channels))
 
-
             if internal_channels_1x1_3x3 is None:
                 internal_channels_1x1_3x3 = in_channels if groups < out_channels else 2 * in_channels   # For mobilenet, it is better to have 2X internal channels
 
@@ -195,9 +213,10 @@ class DiverseBranchBlock(nn.Module):
                                                             kernel_size=kernel_size, stride=stride, padding=0, groups=groups, bias=False))
             self.dbb_1x1_kxk.add_module('bn2', nn.BatchNorm2d(out_channels))
 
-        #   The experiments reported in the paper used the default initialization of bn.weight (all as 1). But changing the initialization may be useful in some cases.
+        # The experiments reported in the paper used the default initialization of bn.weight (all as 1).
+        # But changing the initialization may be useful in some cases.
         if single_init:
-            #   Initialize the bn.weight of dbb_origin as 1 and others as 0. This is not the default setting.
+            # Initialize the bn.weight of dbb_origin as 1 and others as 0. This is not the default setting.
             self.single_init()
 
     def get_equivalent_kernel_bias(self):
@@ -248,16 +267,15 @@ class DiverseBranchBlock(nn.Module):
         return self.dbb_reparam.weight.data, self.dbb_reparam.bias.data
 
     def forward(self, inputs):
-
         if hasattr(self, 'dbb_reparam'):
-            return self.nonlinear(self.dbb_reparam(inputs))
+            return self.dbb_reparam(inputs)
 
         out = self.dbb_origin(inputs)
         if hasattr(self, 'dbb_1x1'):
             out += self.dbb_1x1(inputs)
         out += self.dbb_avg(inputs)
         out += self.dbb_1x1_kxk(inputs)
-        return self.nonlinear(out)
+        return out
 
     def init_gamma(self, gamma_value):
         if hasattr(self, "dbb_origin"):
@@ -278,13 +296,10 @@ class DiverseBranchBlock(nn.Module):
     def get_conv(configs):
         default_params = {
             "kernel_size"              : 3,
-            "padding"                  : 1,
+            "padding"                  : 0,
             "dilation"                 : 1,
             "groups"                   : 1,
-            "bias"                     : False,
-            "padding_mode"             : "zeros",
             "internal_channels_1x1_3x3": None,
-            "nonlinear"                : None,
             "single_init"              : False
         }
         for key in default_params.keys():
