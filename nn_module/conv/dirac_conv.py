@@ -41,6 +41,28 @@ class DiracConv2d(nn.Conv2d, DiracConv):
     """
 
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode="zeros"):
+        """
+        Parameters
+        ----------
+        in_channels : int
+            The number of input channels.
+        out_channels : int
+            The number of output channels.
+        kernel_size : int or tuple of int
+            The size of the kernel.
+        stride : int or tuple of int
+            The stride of the kernel.
+        padding : int or tuple of int
+            The padding of the input.
+        dilation : int or tuple of int
+            The dilation of the kernel.
+        groups : int
+            The number of groups.
+        bias : bool
+            Whether to use bias.
+        padding_mode : str
+            The padding mode.
+        """
         if stride != 1:
             warnings.warn("DiracConv2d only supports stride=1 ! For case stride != 1, DiracConv2d still uses stride=1."
                           "So users need to ensure the correctness of the network when stride != 1 is specified.")
