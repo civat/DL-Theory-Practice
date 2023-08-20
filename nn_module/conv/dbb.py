@@ -276,11 +276,16 @@ class DiverseBranchBlock(nn.Module):
 
     @staticmethod
     def get_conv(configs):
-        k = configs["k"] if "k" in configs.keys() else 1
         default_params = {
+            "kernel_size"              : 3,
+            "padding"                  : 1,
+            "dilation"                 : 1,
+            "groups"                   : 1,
+            "bias"                     : False,
+            "padding_mode"             : "zeros",
             "internal_channels_1x1_3x3": None,
-            "nonlinear": None,
-            "single_init": False
+            "nonlinear"                : None,
+            "single_init"              : False
         }
         for key in default_params.keys():
             if key in configs:
