@@ -153,9 +153,34 @@ class MobileOneBlockP(nn.Module):
 
 @register.NAME_TO_CONVS.register("MobileOneBlock")
 class MobileOneBlock(nn.Module):
+    """
+    See the paper for details of the MobileOneBlock:
+    https://arxiv.org/pdf/2206.04040.pdf
+    """
 
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, padding_mode='zeros',
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, padding_mode="zeros",
                  deploy=False, r=1, act=nn.ReLU):
+        """
+        Parameters
+        ----------
+        in_channels : int
+            The number of input channels.
+        out_channels : int
+            The number of output channels.
+        kernel_size : int or tuple of int
+            The size of the kernel.
+        stride : int or tuple of int
+            The stride of the kernel.
+        padding : int or tuple of int
+            The padding of the input.
+        dilation : int or tuple of int
+            The dilation of the kernel.
+        padding_mode : str
+            The padding mode.
+        deploy : bool
+            Whether to use deploy version of the model.
+            This should be True only when loading parameters of the re-parametrized model.
+        """
         super(MobileOneBlock, self).__init__()
         self.deploy = deploy
         self.conv_d = MobileOneBlockD(in_channels, kernel_size, stride, padding, dilation, padding_mode, deploy=False, r=r)
@@ -168,8 +193,10 @@ class MobileOneBlock(nn.Module):
         return x
 
     def switch_to_deploy(self):
-        self.conv_d.switch_to_deploy()
-        self.conv_p.switch_to_deploy()
+        if not self.deploy:
+            self.deploy = True
+            self.conv_d.switch_to_deploy()
+            self.conv_p.switch_to_deploy()
 
     @staticmethod
     def get_conv(configs):
@@ -179,8 +206,8 @@ class MobileOneBlock(nn.Module):
             "padding"     : 0,
             "dilation"    : 1,
             "padding_mode": "zeros",
-            "r": 1,
-            "act": act,
+            "r"           : 1,
+            "act"         : act,
         }
 
         default_params = utils.set_params(default_params, configs, excluded_keys=["act"])
