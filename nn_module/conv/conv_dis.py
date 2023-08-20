@@ -12,7 +12,7 @@ class ConvDis(nn.Module):
     def __init__(self, in_channels, out_channels, stride, conv1=Conv2d, conv2=Conv2d):
         super().__init__()
         self.conv1 = conv1(in_channels=in_channels, out_channels=out_channels, stride=1)
-        self.conv2 = conv2(in_channels=in_channels, out_channels=out_channels, stride=stride)
+        self.conv2 = conv2(in_channels=out_channels, out_channels=out_channels, stride=stride)
 
     def forward(self, x):
         x1 = self.conv1(x)
