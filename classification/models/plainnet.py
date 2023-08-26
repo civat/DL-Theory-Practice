@@ -83,7 +83,7 @@ class PlainNet(nn.Module):
         return PlainNet(**default_params)
 
 
-@register.name_to_model.register("PlainNet18")
+@register.name_to_model.register("PlainOANet")
 class PlainOANet(nn.Module):
 
     def __init__(self, in_channels, hidden_channels, n_blocks_list, stride_list, stride_factor, num_classes, last_act,
