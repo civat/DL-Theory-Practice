@@ -11,6 +11,48 @@ from nn_module.conv.convs import Conv2d
 class ResBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, stride, add=True, act=nn.ReLU, conv1=Conv2d, conv2=Conv2d, conv_sc=Conv2d):
+        """Residual block introduced in ResNet
+        Residual block consists of three convolutional layers.
+          1) conv1: down-sampling or up-sampling layer.
+          2) conv2: convolutional layer with stride 1.
+          3) conv_sc: shortcut layer to match the size of the main stream tensor.
+
+        The calculation of the residual block can be expressed as:
+          1) output = conv2(conv1(x)) + conv_sc(x) if stride != 1
+          2) output = conv2(conv1(x)) + x          if stride == 1
+
+        We can use the "add" arg to set the operation of the residual block to
+        subtraction:
+          1) output = conv2(conv1(x)) - conv_sc(x) if stride != 1
+          2) output = conv2(conv1(x)) - x          if stride == 1
+
+        In general, it is meaningless to use subtraction in the residual block.
+        See https://www.zhihu.com/question/433548556/answer/2938153423 for details
+        of using subtraction instead of addition.
+
+        Note that, we can simply make the residual block for up-sampling by
+        setting "conv1" arg to ConvTranspose2d (nn_module/conv/convs/Conv2dTranspose).
+
+        Parameters
+        ----------
+        in_channels : int
+            The number of input channels.
+        out_channels : int
+            The number of output channels.
+        stride : int or tuple
+            The stride of the first convolutional layer (conv1).
+        add : bool
+            Whether to use addition in the residual block.
+            "False" to use subtraction.
+        act : nn.Module (see register.py for available activation functions)
+            The activation function used between conv1 and conv2.
+        conv1 : nn.Module (see nn_module/conv/ for available convolutional layers)
+            The first convolutional layer.
+        conv2 : nn.Module (see nn_module/conv/ for available convolutional layers)
+            The second convolutional layer.
+        conv_sc : nn.Module (see nn_module/conv/ for available convolutional layers)
+            The shortcut convolutional layer.
+        """
         super().__init__()
         self.stride = stride
         self.add = add
