@@ -22,7 +22,7 @@ Model:
     stride_list    : [2, 2, 2, 2]
     stride_factor  : 2
     pool_size      : 3
-    fc_in_dim      : 2045
+    fc_in_dim      : 2048
     fc_out_dim     : 1024
     num_classes    : 10
     last_act       : "IdentityAct"
