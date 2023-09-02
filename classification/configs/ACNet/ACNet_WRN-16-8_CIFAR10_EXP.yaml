@@ -18,7 +18,7 @@ Model:
   PlainOANet:
     in_channels    : 3
     hidden_channels: 128
-    n_blocks_list  : [1, 2, 2, 2]
+    n_blocks_list  : [1, 2, 2, 3]
     stride_list    : [1, 2, 2, 2]
     stride_factor  : 2
     num_classes    : 10
