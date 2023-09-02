@@ -85,6 +85,6 @@ Train:
   save_freq: 500
   deploy: True
   deploy_test: True
-  output: "../workspace/Output/Classification/ACNet/ACNet_RES-56_CIFAR10_EXP"
+  output: "../workspace/Output/ACNet/ACNet_RES-56_CIFAR10_EXP"
   keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu
