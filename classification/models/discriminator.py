@@ -21,8 +21,8 @@ class SimpleDiscriminator(nn.Module):
 
         for i in range(1, len(stride_factors)):
             in_channels = hidden_channels
-            hidden_channels = hidden_channels * stride_factors[i]
-            self.backbone += [conv1(in_channels, hidden_channels, stride=stride_list[i])]
+            hidden_channels = in_channels * stride_factors[i]
+            self.backbone += [conv1(in_channels, hidden_channels, stride=stride_factors[i])]
 
         conv_last = conv2(hidden_channels, hidden_channels * 2, stride=1)
         self.backbone += [conv_last]
