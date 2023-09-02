@@ -63,11 +63,11 @@ Model:
                 kernel_size: 1
                 bias: False
                 padding: 0
-    OPT:
-      SGD:
-        lr: 0.1
-        momentum: 0.9
-        weight_decay: 5e-4
+  OPT:
+    SGD:
+      lr: 0.1
+      momentum: 0.9
+      weight_decay: 5e-4
   Scheduler:
     ConstantLR:
       factor: 0.1
