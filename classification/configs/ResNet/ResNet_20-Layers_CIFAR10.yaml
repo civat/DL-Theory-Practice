@@ -4,7 +4,7 @@ Dataset:
   batch_size: 128
   h: 32
   w: 32
-  num_workers: 4
+  num_workers: 16
   pin_memory: True
 Argumentation:
   RandomHorizontalFlip:
