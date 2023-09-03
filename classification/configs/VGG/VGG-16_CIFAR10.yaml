@@ -24,8 +24,8 @@ Model:
     pool_size      : 3
     fc_in_dim      : 2048
     fc_out_dim     : 1024
-    last_act       : "IdentityAct"
     num_classes    : 10
+    last_act       : "IdentityAct"
     conv           :
       ConvNormAct:
         norm: "BatchNorm"
