@@ -212,8 +212,8 @@ if __name__ == "__main__":
                     trn_error = 1 - trn_pos / (batch_size * save_freq)
                     trn_error_list.append(trn_error)
 
-                    log.logger.info("{:<40}  {:<8}".format(f"The training loss  at {iterations}-th iteration   : ", trn_loss))
-                    log.logger.info("{:<40}  {:<8}".format(f"The training error at {iterations}-th iteration   : ", trn_error))
+                    log.logger.info("{:<40}  {:<8}".format(f"Train loss  at {iterations}-th iteration   : ", trn_loss))
+                    log.logger.info("{:<40}  {:<8}".format(f"Train error at {iterations}-th iteration   : ", trn_error))
                     trn_loss, trn_pos, tst_loss, tst_pos = 0., 0., 0., 0.
                     model.eval()
                     with torch.no_grad():
@@ -229,8 +229,8 @@ if __name__ == "__main__":
                         tst_loss = tst_loss / len(tst_data)
                         tst_loss_list.append(tst_loss)
                         tst_error_list.append(tst_error)
-                        log.logger.info("{:<40}  {:<8}".format(f"The training  loss  at {iterations}-th iteration   : ", tst_loss))
-                        log.logger.info("{:<40}  {:<8}".format(f"The training  error at {iterations}-th iteration   : ", tst_error))
+                        log.logger.info("{:<40}  {:<8}".format(f"Test  loss  at {iterations}-th iteration   : ", tst_loss))
+                        log.logger.info("{:<40}  {:<8}".format(f"Test  error at {iterations}-th iteration   : ", tst_error))
 
                         # save last
                         if device == "cuda":
