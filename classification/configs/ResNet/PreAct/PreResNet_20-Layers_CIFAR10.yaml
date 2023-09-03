@@ -49,7 +49,7 @@ Model:
         conv_sc:
           ConvNormAct:
             norm: "BatchNorm"
-            act: "IdentityAct"
+            act: "ReLU"
             pre_act: True
             conv:
               Conv2d:
