@@ -4,7 +4,7 @@ Dataset:
   batch_size: 128
   h: 32
   w: 32
-  num_workers: 4
+  num_workers: 16
   pin_memory: True
 Argumentation:
   RandomHorizontalFlip:
@@ -49,5 +49,5 @@ Train:
   iterations: 64000
   save_freq: 500
   output: "../workspace/Output/PlainNet/PlainNet_56-Layers_CIFAR10"
-  keep_gradients: False
+  keep_gradients: True
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu
