@@ -27,7 +27,7 @@ Model:
     conv1          :
       ConvNormAct:
         norm: "BatchNorm"
-        act: "ReLU"
+        act: "ReLUSX"
         conv:
           Conv2d:
             kernel_size: 3
