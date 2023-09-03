@@ -80,6 +80,6 @@ Model:
 Train:
   iterations: 64000
   save_freq: 500
-  output: "../workspace/Output/ResNet/ResNet_44-Layers_CIFAR10"
+  output: "../workspace/Output/ResNet/ResNet_56-Layers_CIFAR10"
   keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu
