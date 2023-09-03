@@ -1,0 +1,61 @@
+Dataset:
+  name: "CIFAR10"
+  root_path: "../workspace/Datasets"
+  batch_size: 128
+  h: 32
+  w: 32
+  num_workers: 4
+  pin_memory: True
+Argumentation:
+  RandomHorizontalFlip:
+    p: 0.5
+  RandomCrop:
+    size: [32, 32]
+    padding: 4
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+Model:
+  PlainNet:
+    in_channels    : 3
+    hidden_channels: 48
+    n_blocks_list  : [1, 2, 8, 5, 5, 1]
+    stride_list    : [1, 2, 2, 2, 1, 1]
+    stride_factor  : 2
+    num_classes    : 10
+    last_act       : "IdentityAct"
+    conv           :
+      ConvNormAct:
+        norm: "IdentityNorm"
+        act: "ReLU"
+        conv:
+          MobileOneBlock:
+            kernel_size: 3
+            bias: False
+            padding: 1
+            r: 4
+            act: "ReLU"
+  OPT:
+    SGD:
+      lr: 0.1
+      momentum: 0.9
+      weight_decay: 5e-4
+  Scheduler:
+    ConstantLR:
+      factor: 0.1
+      total_iters: 400
+    MultiStepLR:
+      gamma: 0.2
+      milestones: [23400, 46800, 62400]
+  Init:
+    kaiming_normal_:
+      mode: "fan_in"
+      nonlinearity: "relu"
+
+Train:
+  iterations: 78000
+  save_freq: 500
+  deploy: True
+  deploy_test: True
+  output: "../workspace/Output/MobileOne/MobileOne_S0_CIFAR10"
+  keep_gradients: False
+  device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu
