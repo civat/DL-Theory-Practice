@@ -51,6 +51,6 @@ Model:
 Train:
   iterations: 75000
   save_freq: 500
-  output: "../workspace/Output/DiracNet/DiracNet_20_10_EXP"
+  output: "../workspace/Output/DiracNet/DiracNet_28_10_EXP"
   keep_gradients: False
   device: [0]
