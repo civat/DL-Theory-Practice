@@ -24,14 +24,13 @@ Model:
     num_classes    : 10
     last_act       : "IdentityAct"
     use_pool       : False
-    conv1:
+    conv1          :
       ConvNormAct:
         norm: "IdentityNorm"
-        act : "ReLU"
+        act: "ReLU"
         conv:
           RepVGGBlock:
             kernel_size: 3
-            bias: False
             padding: 1
     conv2:
       ResBlock:
@@ -43,7 +42,6 @@ Model:
             conv:
               RepVGGBlock:
                 kernel_size: 3
-                bias: False
                 padding: 1
         conv2:
           ConvNormAct:
@@ -52,7 +50,6 @@ Model:
             conv:
               RepVGGBlock:
                 kernel_size: 3
-                bias: False
                 padding: 1
         conv_sc:
           ConvNormAct:

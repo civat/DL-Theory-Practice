@@ -29,11 +29,10 @@ Model:
     conv           :
       ConvNormAct:
         norm: "IdentityNorm"
-        act : "ReLU"
+        act: "ReLU"
         conv:
           RepVGGBlock:
             kernel_size: 3
-            bias: False
             padding: 1
   OPT:
     SGD:
@@ -41,7 +40,7 @@ Model:
       momentum: 0.9
       weight_decay: 5e-4
   Scheduler:
-    MultiStepLR: 
+    MultiStepLR:
       gamma: 0.2
       milestones: [23400, 46800, 62400]
   Init:
