@@ -310,8 +310,8 @@ if __name__ == "__main__":
                     tst_loss = tst_loss / len(tst_data)
                     tst_loss_list.append(tst_loss)
                     tst_error_list.append(tst_error)
-                    log.logger.info("{:<40}  {:<8}".format(f"Test loss  at {iterations}-th iteration: ", tst_loss))
-                    log.logger.info("{:<40}  {:<8}".format(f"Test error at {iterations}-th iteration: ", tst_error))
+                    log.logger.info("{:<30}  {:<8}".format(f"Test loss  at {iterations}-th iteration: ", tst_loss))
+                    log.logger.info("{:<30}  {:<8}".format(f"Test error at {iterations}-th iteration: ", tst_error))
 
             # save last
             if device == "cuda":
