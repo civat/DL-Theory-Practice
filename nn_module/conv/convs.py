@@ -70,6 +70,7 @@ class Conv2d(nn.Module):
             default_params["in_channels"] = configs["in_channels"]
         if "out_channels" in configs:
             default_params["out_channels"] = configs["out_channels"]
+
         default_params = utils.set_params(default_params, configs)
         conv = functools.partial(Conv2d, **default_params)
         return conv
