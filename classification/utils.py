@@ -32,10 +32,10 @@ def load_yaml_file(file_path):
     return data
 
 
-def get_transformations(argumentation_configs):
+def get_transformations(argumentation_configs, module=transforms):
     trans = []
     trans_available = {}
-    for name, method in inspect.getmembers(transforms):
+    for name, method in inspect.getmembers(module):
         if name[0] != "_":
             trans_available[name] = method
 
@@ -222,14 +222,20 @@ def set_params(default_params, configs, excluded_keys=[]):
 
     Parameters
     ----------
-    default_params: dict[str: float]
+    default_params: dict[str: obj]
       A dict of default params with name (key) and value (value).
-    configs: dict[str: float]
+    configs: dict[str: obj]
       Config.
     excluded_keys: list[str]
       Keys to exclude in configs.
     """
-    for key in default_params.keys():
-        if key not in excluded_keys and key in configs:
-            default_params[key] = configs[key]
+    default_keys = list(default_params.keys())
+    config_keys = list(configs.keys())
+    for key in config_keys:
+        if key in default_keys:
+            if key not in excluded_keys:
+                default_params[key] = configs[key]
+        else:
+            raise Exception(f"Error key: {key}!")
+
     return default_params
