@@ -67,7 +67,7 @@ class DSConv(nn.Module):
 
     @staticmethod
     def get_conv(configs):
-        norm = utils.get_norm(configs["norm"])
+        norm = register.get_norm(configs["norm"])
         act = register.get_activation(configs["act"])
         default_params = {
             "kernel_size"  : 3,
@@ -93,11 +93,11 @@ class DSBottleNeckConv(nn.Module):
         super().__init__()
         hidden_channels = int(in_channels * expansion)
 
-        # if expansion == 1, do not add the first 1x1 conv
+        # if expansion is 1, do not add the first 1x1 conv
         if expansion == 1:
             convs = [
-                Conv2d(in_channels, hidden_channels, kernel_size=1, stride=stride, padding=padding, dilation=dilation,
-                       groups=1, bias=bias, padding_mode=padding_mode, spectral_norm=spectral_norm),
+                Conv2d(in_channels, hidden_channels, kernel_size, stride=stride, padding=padding, dilation=dilation,
+                       groups=hidden_channels, bias=bias, padding_mode=padding_mode, spectral_norm=spectral_norm),
                 DispatchNorm(norm, num_features=hidden_channels),
                 act(),
                 Conv2d(hidden_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=dilation,
@@ -109,7 +109,7 @@ class DSBottleNeckConv(nn.Module):
                        groups=1, bias=bias, padding_mode=padding_mode, spectral_norm=spectral_norm),
                 DispatchNorm(norm, num_features=hidden_channels),
                 act(),
-                Conv2d(hidden_channels, hidden_channels, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation,
+                Conv2d(hidden_channels, hidden_channels, kernel_size, stride=stride, padding=padding, dilation=dilation,
                        groups=hidden_channels, bias=bias, padding_mode=padding_mode, spectral_norm=spectral_norm),
                 DispatchNorm(norm, num_features=hidden_channels),
                 act(),
@@ -124,12 +124,12 @@ class DSBottleNeckConv(nn.Module):
         # add residual connection if the
         # input and output have the same shape
         if x.size(1) == out.size(1) and x.size(2) == out.size(2) and x.size(3) == out.size(3):
-            out = out + x
+            out += x
         return out
 
     @staticmethod
     def get_conv(configs):
-        norm = utils.get_norm(configs["norm"])
+        norm = register.get_norm(configs["norm"])
         act = register.get_activation(configs["act"])
         default_params = {
             "kernel_size"  : 3,
