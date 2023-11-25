@@ -45,7 +45,7 @@ class ResBlock(nn.Module):
             Whether to use addition in the residual block.
             "False" to use subtraction.
         act : nn.Module (see register.py for available activation functions)
-            The activation function used between conv1 and conv2.
+            The activation function used after conv2.
         conv1 : nn.Module (see nn_module/conv/ for available convolutional layers)
             The first convolutional layer.
         conv2 : nn.Module (see nn_module/conv/ for available convolutional layers)
