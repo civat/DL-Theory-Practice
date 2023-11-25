@@ -52,6 +52,7 @@ class Conv2d(nn.Module):
     def get_conv(configs):
         default_params = {
             "kernel_size"  : 3,
+            "stride"       : 1,
             "padding"      : 0,
             "dilation"     : 1,
             "groups"       : 1,
@@ -59,6 +60,16 @@ class Conv2d(nn.Module):
             "padding_mode" : "zeros",
             "spectral_norm": False,
         }
+
+        # In most cases, we do not need to set the following parameters
+        # as the network will infer them using stride and stride factor
+        # of each layer.
+        # The only reason we need to set them is when we want to use
+        # 1x1 conv layers as fully connected layers.
+        if "in_channels" in configs:
+            default_params["in_channels"] = configs["in_channels"]
+        if "out_channels" in configs:
+            default_params["out_channels"] = configs["out_channels"]
         default_params = utils.set_params(default_params, configs)
         conv = functools.partial(Conv2d, **default_params)
         return conv

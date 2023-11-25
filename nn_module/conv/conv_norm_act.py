@@ -53,6 +53,19 @@ class ConvNormAct(nn.Module):
             "pre_act": False,
             "conv"   : conv,
         }
+
+        # In most cases, we do not need to set the following parameters
+        # as the network will infer them using stride and stride factor
+        # of each layer.
+        # The only reason we need to set them is when we want to use
+        # 1x1 conv layers as fully connected layers.
+        if "in_channels" in configs:
+            default_params["in_channels"] = configs["in_channels"]
+        if "out_channels" in configs:
+            default_params["out_channels"] = configs["out_channels"]
+        if "stride" in configs:
+            default_params["stride"] = configs["stride"]
+
         default_params = utils.set_params(default_params, configs, excluded_keys=["norm", "act", "conv"])
         conv = functools.partial(ConvNormAct, **default_params)
         return conv
