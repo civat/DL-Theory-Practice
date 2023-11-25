@@ -26,7 +26,7 @@ class DiracNet(nn.Module):
 
         # Define the first to last (exclude) groups
         vgg_backbone, hidden_channels = VGG.make_backbone(n_blocks_list[:-1], stride_list[:-1], hidden_channels,
-                                                          hidden_channels, stride_factor[-1], pool_size, conv)
+                                                          hidden_channels, stride_factor[:-1], pool_size, conv)
         self.backbone += vgg_backbone
 
         sf = PlainNet._get_stride_factor(stride_list[-1], stride_factor[-1])
