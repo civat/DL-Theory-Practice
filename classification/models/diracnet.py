@@ -26,7 +26,7 @@ class DiracNet(nn.Module):
 
         # Define the first to last (exclude) groups
         vgg_backbone, hidden_channels = VGG.make_backbone(n_blocks_list[:-1], stride_list[:-1], hidden_channels,
-                                                          hidden_channels, stride_factor, pool_size, conv)
+                                                          hidden_channels, stride_factor[-1], pool_size, conv)
         self.backbone += vgg_backbone
 
         sf = PlainNet._get_stride_factor(stride_list[-1], stride_factor[-1])
@@ -47,7 +47,7 @@ class DiracNet(nn.Module):
     def forward(self, x):
         if self.out_feats is None or self.out_feats == "None":
             output = self.last_act(self.backbone(x))
-            if self.num_classes > 0:
+            if self.num_classes is not None and self.num_classes > 0:
                 output = self.avg_pool(output)
                 output = output.view(output.size(0), -1)
                 output = self.fc(output)
@@ -64,7 +64,7 @@ class DiracNet(nn.Module):
                 output = self.avg_pool(output)
                 output = output.view(output.size(0), -1)
                 output = self.fc(output)
-            outputs["last_layer"] = output
+            outputs["layer_last"] = output
             return outputs
 
     @staticmethod
