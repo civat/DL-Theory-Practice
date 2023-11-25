@@ -152,7 +152,7 @@ def get_activation(act_type):
             raise NotImplementedError(f"The specified {name} is not implemented. The available values are {NAME_TO_ACTS.keys()}")
 
     if act_type is None:
-        return get_act_by_name("Identity")
+        return get_act_by_name("IdentityAct")
     if isinstance(act_type, str):
         act = get_act_by_name(act_type)
     elif isinstance(act_type, dict):
@@ -219,6 +219,8 @@ NAME_TO_ACTS["Relu"] = nn.ReLU
 NAME_TO_ACTS["ReLU"] = nn.ReLU
 NAME_TO_ACTS["LeakyRelu"] = nn.LeakyReLU
 NAME_TO_ACTS["LeakyReLU"] = nn.LeakyReLU
+NAME_TO_ACTS["ReLU6"] = nn.ReLU6
+NAME_TO_ACTS["Hardswish"] = nn.Hardswish
 
 # Registration for conv
 NAME_TO_CONVS = Register("name_to_convs")
