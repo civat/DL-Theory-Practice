@@ -1,10 +1,10 @@
 # The MobileNet_v3 architecture used in the paper:
-#  Searching for MobileNetV3
+# Searching for MobileNetV3
 
 Dataset:
   trn_path: "../workspace/Datasets/ImageNet/train"
   tst_path: "../workspace/Datasets/ImageNet/val"
-  batch_size: 96
+  batch_size: 128
   h: 224
   w: 224
   num_workers: 16
@@ -15,7 +15,7 @@ Argumentation:
 Model:
   GNetwork:
     in_channels        : 3
-    hidden_channels    : 32
+    hidden_channels    : 16
     n_blocks_list      : [1, 1, 1,   1, 1,   2, 2,   3, 1]
     stride_list        : [2, 2, 2,   1, 2,   1, 1,   2, 1]
     stride_factor_list : [1, 1, 1.5, 1, 1.7, 1, 1.2, 2, 6]
@@ -140,15 +140,11 @@ Model:
           norm: "BatchNorm"
           act: "IdentityAct"
           conv:
-            SEConv:
-              ratio: 0.25
-              act: "Hardswish"
-              conv:
-                Conv2d:
-                  kernel_size: 1
-                  stride: 1
-                  bias: False
-                  padding: 0
+            Conv2d:
+              kernel_size: 1
+              stride: 1
+              bias: False
+              padding: 0
     fcs:
       fc0:
         ConvNormAct:
