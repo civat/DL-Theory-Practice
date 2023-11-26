@@ -14,13 +14,13 @@ Argumentation:
   std : [0.229, 0.224, 0.225]
 Model:
   GNetwork:
-    in_channels    : 3
-    hidden_channels: 32
-    n_blocks_list  : [1, 1,   2,   3,    4, 3,   3,    1, 1]
-    stride_list    : [2, 1,   2,   2,    2, 1,   2,    1, 1]
-    stride_factor  : [1, 0.5, 1.5, 1.35, 2, 1.5, 1.67, 2, 4]
-    num_classes    : 1000
-    last_act       : "IdentityAct"
+    in_channels        : 3
+    hidden_channels    : 32
+    n_blocks_list      : [1, 1,   2,   3,    4, 3,   3,    1, 1]
+    stride_list        : [2, 1,   2,   2,    2, 1,   2,    1, 1]
+    stride_factor_list : [1, 0.5, 1.5, 1.35, 2, 1.5, 1.67, 2, 4]
+    num_classes        : 1000
+    last_act           : "IdentityAct"
     convs:
       conv0:
         ConvNormAct:
