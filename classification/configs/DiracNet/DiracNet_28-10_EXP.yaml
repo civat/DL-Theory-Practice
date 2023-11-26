@@ -17,12 +17,11 @@ Argumentation:
 Model:
   DiracNet:
     in_channels    : 3
-    hidden_channels: 16
+    hidden_channels: 160
     n_blocks_list  : [8, 8, 8]
     stride_list    : [2, 2, 2]
     stride_factor  : 2
     pool_size      : 3
-    k              : 10
     num_classes    : 10
     last_act       : "IdentityAct"
     conv           :
