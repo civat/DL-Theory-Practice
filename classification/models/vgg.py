@@ -23,7 +23,7 @@ class VGG(nn.Module):
             stride_factor = [PlainNet._get_stride_factor(stride, sf) for stride, sf in zip(stride_list, stride_factor)]
 
         self.backbone, self.out_channels = VGG.make_backbone(n_blocks_list, stride_list, in_channels, hidden_channels,
-                                                        stride_factor, pool_size, conv)
+                                                             stride_factor, pool_size, conv)
         self.last_act = last_act()
         self.out_feats = out_feats
 
