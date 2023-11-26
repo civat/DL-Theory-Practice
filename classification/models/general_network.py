@@ -4,7 +4,6 @@ from collections import OrderedDict
 import register
 from classification import utils
 from classification.models.plainnet import PlainNet
-from nn_module.conv.convs import Conv2d
 
 
 @register.name_to_model.register("GNetwork")
