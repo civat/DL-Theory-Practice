@@ -1,0 +1,56 @@
+Dataset:
+  trn_path: "../workspace/Datasets/ImageNet/train"
+  tst_path: "../workspace/Datasets/ImageNet/val"
+  batch_size: 32
+  h: 224
+  w: 224
+  num_workers: 16
+  pin_memory: True
+Argumentation:
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+Model:
+  PlainOANet:
+    in_channels    : 3
+    hidden_channels: 32
+    n_blocks_list  : [1, 1, 2, 2, 1, 5, 1, 1]
+    stride_list    : [1, 1, 2, 2, 2, 1, 2, 1]
+    stride_factor  : [1, 2, 2, 2, 2, 1, 2, 1]
+    num_classes    : 1000
+    last_act       : "IdentityAct"
+    use_pool       : False
+    conv1          :
+      ConvNormAct:
+        norm: "BatchNorm"
+        act: "ReLU6"
+        conv:
+          Conv2d:
+            kernel_size: 3
+            bias: False
+            padding: 1
+    conv2:
+      ConvNormAct:
+        norm: "BatchNorm"
+        act: "ReLU6"
+        conv:
+          DSConv:
+            kernel_size: 3
+            bias: False
+            padding: 1
+            norm: "BatchNorm"
+            act: "ReLU6"
+  OPT:
+    SGD:
+      lr: 0.1
+      weight_decay: 0.00004
+  Scheduler:
+    MultiStepLR:
+      gamma: 0.98
+      milestones: [45000, 90000, 135000, 180000, 225000, 270000, 315000, 360000, 405000, 450000, 495000]
+
+Train:
+  iterations: 540000
+  save_freq: 500
+  output: "../workspace/Output/MobileNet_v1/MobileNet_ImageNet_224_EXP"
+  keep_gradients: False
+  device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu
