@@ -12,6 +12,7 @@ from torchvision import datasets
 import register
 from classification import utils
 from classification.dataset import DatasetCls
+from classification.transforms.transforms import ToRGB
 
 
 def run_one_step(x, y):
@@ -34,7 +35,7 @@ if __name__ == "__main__":
     # Load configs
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
     parser.add_argument('--config_file', type=str,
-                        default="classification/configs/ResNet/Add_or_Sub/ResNet_20-Layers_CIFAR10_SUB.yaml",
+                        default="classification/configs/MobileNet_v1/MobileNet_ImageNet_224_EXP.yaml",
                         help="Path of config file.")
     config_file_path = parser.parse_args().config_file
     configs = utils.load_yaml_file(config_file_path)
@@ -52,14 +53,19 @@ if __name__ == "__main__":
     # simply setting the tag "Argumentation" in the config file.
     # See config files in the "classification/configs" dict for example.
     train_trans = []
+    mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
     if "Argumentation" in configs:
         train_trans = utils.get_transformations(configs["Argumentation"])
         if "mean" in configs["Argumentation"] and "std" in configs["Argumentation"]:
             mean, std = configs["Argumentation"]["mean"], configs["Argumentation"]["std"]
-        else:
-            # If mean OR std is not specified, we use the default values from ImageNet
-            mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-    trans = [
+
+    # If the channels of input image is not 3,
+    # covert it to 3 channels.
+    trans = []
+    if len(mean) == 3:
+        trans += [ToRGB()]
+
+    trans += [
         # You need to specify the image size by setting "h" and "w" in the config file
         transforms.Resize((configs["Dataset"]["h"], configs["Dataset"]["w"])),
         transforms.ToTensor(),
