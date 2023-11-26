@@ -1,0 +1,187 @@
+# The MobileNet_v3 architecture used in the paper:
+#  Searching for MobileNetV3
+
+Dataset:
+  trn_path: "../workspace/Datasets/ImageNet/train"
+  tst_path: "../workspace/Datasets/ImageNet/val"
+  batch_size: 96
+  h: 224
+  w: 224
+  num_workers: 16
+  pin_memory: True
+Argumentation:
+  mean: [0.485, 0.456, 0.406]
+  std : [0.229, 0.224, 0.225]
+Model:
+  GNetwork:
+    in_channels        : 3
+    hidden_channels    : 32
+    n_blocks_list      : [1, 1, 1,   1, 1,   2, 2,   3, 1]
+    stride_list        : [2, 2, 2,   1, 2,   1, 1,   2, 1]
+    stride_factor_list : [1, 1, 1.5, 1, 1.7, 1, 1.2, 2, 6]
+    num_classes        : 1000
+    last_act           : "IdentityAct"
+    convs:
+      conv0:
+        ConvNormAct:
+          norm: "BatchNorm"
+          act: "Hardswish"
+          conv:
+            Conv2d:
+              kernel_size: 3
+              bias: False
+              padding: 1
+      conv1:
+        ConvNormAct:
+          norm: "BatchNorm"
+          act: "IdentityAct"
+          conv:
+            SEConv:
+              ratio: 0.25
+              act: "ReLU6"
+              conv:
+                DSBottleNeckConv:
+                  kernel_size: 3
+                  bias: False
+                  padding: 1
+                  norm: "BatchNorm"
+                  act: "ReLU6"
+                  expansion: 1
+      conv2:
+        ConvNormAct:
+          norm: "BatchNorm"
+          act: "IdentityAct"
+          conv:
+            DSBottleNeckConv:
+              kernel_size: 3
+              bias: False
+              padding: 1
+              norm: "BatchNorm"
+              act: "ReLU6"
+              expansion: 4.5
+      conv3:
+        ConvNormAct:
+          norm: "BatchNorm"
+          act: "IdentityAct"
+          conv:
+            DSBottleNeckConv:
+              kernel_size: 3
+              bias: False
+              padding: 1
+              norm: "BatchNorm"
+              act: "ReLU6"
+              expansion: 3.7
+      conv4:
+        ConvNormAct:
+          norm: "BatchNorm"
+          act: "IdentityAct"
+          conv:
+            SEConv:
+              ratio: 0.25
+              act: "Hardswish"
+              conv:
+                DSBottleNeckConv:
+                  kernel_size: 5
+                  bias: False
+                  padding: 2
+                  norm: "BatchNorm"
+                  act: "Hardswish"
+                  expansion: 4
+      conv5:
+        ConvNormAct:
+          norm: "BatchNorm"
+          act: "IdentityAct"
+          conv:
+            SEConv:
+              ratio: 0.25
+              act: "Hardswish"
+              conv:
+                DSBottleNeckConv:
+                  kernel_size: 5
+                  bias: False
+                  padding: 2
+                  norm: "BatchNorm"
+                  act: "Hardswish"
+                  expansion: 6
+      conv6:
+        ConvNormAct:
+          norm: "BatchNorm"
+          act: "IdentityAct"
+          conv:
+            SEConv:
+              ratio: 0.25
+              act: "Hardswish"
+              conv:
+                DSBottleNeckConv:
+                  kernel_size: 5
+                  bias: False
+                  padding: 2
+                  norm: "BatchNorm"
+                  act: "Hardswish"
+                  expansion: 3
+      conv7:
+        ConvNormAct:
+          norm: "BatchNorm"
+          act: "IdentityAct"
+          conv:
+            SEConv:
+              ratio: 0.25
+              act: "Hardswish"
+              conv:
+                DSBottleNeckConv:
+                  kernel_size: 5
+                  bias: False
+                  padding: 2
+                  norm: "BatchNorm"
+                  act: "Hardswish"
+                  expansion: 6
+      conv8:
+        ConvNormAct:
+          norm: "BatchNorm"
+          act: "IdentityAct"
+          conv:
+            SEConv:
+              ratio: 0.25
+              act: "Hardswish"
+              conv:
+                Conv2d:
+                  kernel_size: 1
+                  stride: 1
+                  bias: False
+                  padding: 0
+    fcs:
+      fc0:
+        ConvNormAct:
+          in_channels: 576
+          out_channels: 1280
+          stride: 1
+          norm: "IdentityNorm"
+          act: "Hardswish"
+          conv:
+            Conv2d:
+              kernel_size: 1
+              padding: 0
+              bias: True
+      fc1:
+        Conv2d:
+          in_channels: 1280
+          out_channels: 1000
+          kernel_size: 1
+          stride: 1
+          padding: 0
+          bias: True
+  OPT:
+    SGD:
+      lr: 0.1
+      weight_decay: 0.00004
+  Scheduler:
+    MultiStepLR:
+      gamma: 0.98
+      milestones: [45000, 90000, 135000, 180000, 225000, 270000, 315000, 360000, 405000, 450000, 495000]
+
+Train:
+  iterations: 540000
+  save_freq: 500
+  output: "../workspace/Output/MobileNet_v3/MobileNet_Small_ImageNet_224_EXP"
+  keep_gradients: False
+  device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu
