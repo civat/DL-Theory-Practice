@@ -11,7 +11,7 @@ from nn_module.conv.convs import Conv2d
 class GeneralNetwork(nn.Module):
 
     def __init__(self, in_channels, hidden_channels, n_blocks_list, stride_list, stride_factor_list,
-                    num_classes, convs, fcs, last_act, out_feats=None):
+                 num_classes, convs, fcs, last_act, out_feats=None):
         super().__init__()
         assert len(n_blocks_list) > 0
         assert len(n_blocks_list) == len(stride_list) == len(stride_factor_list) == len(convs)
@@ -20,9 +20,9 @@ class GeneralNetwork(nn.Module):
 
         self.convs, out_channels = self.make_backbone(n_blocks_list, stride_list, in_channels, hidden_channels,
                                                       stride_factor_list, convs)
-        self.last_act = last_act
+        self.last_act = last_act()
 
-        # for binary classification task, we use BCE loss so only one output logit is needed.
+        # For binary classification task, we use BCE loss so only one output logit is needed.
         self.num_classes = num_classes
         if num_classes == 2:
             num_classes = 1
@@ -58,8 +58,8 @@ class GeneralNetwork(nn.Module):
             outputs = OrderedDict()
             for i, (name, layer) in enumerate(self.convs.named_children()):
                 x = layer(x)
-                for i in self.out_feats:
-                    outputs[f"layer_P{i}"] = x
+                if i in self.out_feats:
+                    outputs[f"layer_{i}"] = x
             output = self.last_act(x)
             if self.num_classes > 0:
                 output = self.avg_pool(output)
@@ -74,7 +74,7 @@ class GeneralNetwork(nn.Module):
         conv_list = []
         for i in range(len(config_convs)):
             if f"conv{i}" not in config_convs:
-                raise Exception(f"The key \"conv{i}\" is not specified.")
+                raise ValueError(f"The key \"conv{i}\" is not specified.")
             else:
                 conv_list += register.get_conv(config_convs, f"conv{i}")
 
@@ -84,7 +84,7 @@ class GeneralNetwork(nn.Module):
             fc_list = []
             for i in range(len(config_fcs)):
                 if f"fc{i}" not in config_fcs:
-                    raise Exception(f"The key \"fc{i}\" is not specified.")
+                    raise ValueError(f"The key \"fc{i}\" is not specified.")
                 else:
                     fc_list += register.get_conv(config_fcs, f"fc{i}")
 
@@ -100,7 +100,7 @@ class GeneralNetwork(nn.Module):
             "convs"             : conv_list,
             "fcs"               : fc_list,
             "last_act"          : act,
-            "out_feats"         : None
+            "out_feats"         : None,
         }
         default_params = utils.set_params(default_params, configs, excluded_keys=["convs", "fcs", "last_act"])
         return GeneralNetwork(**default_params)
