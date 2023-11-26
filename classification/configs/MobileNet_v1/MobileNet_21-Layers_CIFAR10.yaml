@@ -61,5 +61,5 @@ Train:
   iterations: 64000
   save_freq: 500
   output: "../workspace/Output/MobileNet_v1/MobileNet_21-Layers_CIFAR10"
-  keep_gradients: True
+  keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu
