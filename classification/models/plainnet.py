@@ -47,7 +47,7 @@ class PlainNet(nn.Module):
                 if i in self.out_feats:
                     outputs[f"layer_{i}"] = x
 
-            output = self.last_act(self.convs(x))
+            output = self.last_act(x)
             if self.num_classes > 0:
                 output = self.avg_pool(output)
                 output = output.view(output.size(0), -1)
