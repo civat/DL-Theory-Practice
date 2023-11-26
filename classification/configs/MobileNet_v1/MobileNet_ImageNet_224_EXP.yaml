@@ -1,6 +1,6 @@
 # The MobileNet_v1 architecture used in the paper:
 # MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications
-# This config file is the implementation of the "1.0 MobileNet-224" used in the paper.
+# This config file is the implementation of "1.0 MobileNet-224" used in the paper.
 
 Dataset:
   trn_path: "../workspace/Datasets/ImageNet/train"
