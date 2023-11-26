@@ -16,13 +16,17 @@ class SimpleDiscriminator(nn.Module):
     def __init__(self, in_channels, hidden_channels, stride_list, stride_factor, num_classes, conv1=Conv2d, conv2=Conv2d):
         super().__init__()
         assert len(stride_list) > 0
-        self.backbone = [conv1(in_channels, hidden_channels, stride=stride_list[0])]
-        stride_factors = [PlainNet._get_stride_factor(stride, stride_factor) for stride in stride_list]
+        assert isinstance(stride_factor, int) or len(stride_factor) == len(stride_list)
 
-        for i in range(1, len(stride_factors)):
+        if isinstance(stride_factor, int):
+            stride_factor = [stride_factor] * len(stride_list)
+            stride_factor = [PlainNet._get_stride_factor(stride, sf) for stride, sf in zip(stride_list, stride_factor)]
+        self.backbone = [conv1(in_channels, hidden_channels, stride=stride_list[0])]
+
+        for i in range(1, len(stride_factor)):
             in_channels = hidden_channels
-            hidden_channels = in_channels * stride_factors[i]
-            self.backbone += [conv1(in_channels, hidden_channels, stride=stride_factors[i])]
+            hidden_channels = in_channels * stride_factor[i]
+            self.backbone += [conv1(in_channels, hidden_channels, stride=stride_list[i])]
 
         conv_last = conv2(hidden_channels, hidden_channels * 2, stride=1)
         self.backbone += [conv_last]
