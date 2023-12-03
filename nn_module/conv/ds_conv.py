@@ -71,7 +71,6 @@ class DSConv(nn.Module):
         act = register.get_activation(configs["act"])
         default_params = {
             "kernel_size"  : 3,
-            "stride"       : 1,
             "padding"      : 0,
             "dilation"     : 1,
             "bias"         : True,
@@ -133,7 +132,6 @@ class DSBottleNeckConv(nn.Module):
         act = register.get_activation(configs["act"])
         default_params = {
             "kernel_size"  : 3,
-            "stride"       : 1,
             "padding"      : 0,
             "dilation"     : 1,
             "bias"         : True,
