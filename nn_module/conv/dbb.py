@@ -146,7 +146,7 @@ class DiverseBranchBlock(nn.Module):
     """
 
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, deploy=False,
-                 internal_channels_1x1_3x3=None, single_init=False):
+                 internal_channels_1x1_kxk=None, single_init=False):
         """
         Parameters
         ----------
@@ -166,7 +166,7 @@ class DiverseBranchBlock(nn.Module):
             The number of groups.
         deploy : bool
             Whether to use the deploy version of the block.
-        internal_channels_1x1_3x3 : int
+        internal_channels_1x1_kxk : int
             The number of internal channels for the 1x1 and 3x3 convolutions.
         single_init : bool
             Whether to use a single initialization for the 1x1 and 3x3 convolutions.
@@ -199,17 +199,17 @@ class DiverseBranchBlock(nn.Module):
 
             self.dbb_avg.add_module('avgbn', nn.BatchNorm2d(out_channels))
 
-            if internal_channels_1x1_3x3 is None:
-                internal_channels_1x1_3x3 = in_channels if groups < out_channels else 2 * in_channels   # For mobilenet, it is better to have 2X internal channels
+            if internal_channels_1x1_kxk is None:
+                internal_channels_1x1_kxk = in_channels if groups < out_channels else 2 * in_channels   # For mobilenet, it is better to have 2X internal channels
 
             self.dbb_1x1_kxk = nn.Sequential()
-            if internal_channels_1x1_3x3 == in_channels:
+            if internal_channels_1x1_kxk == in_channels:
                 self.dbb_1x1_kxk.add_module('idconv1', IdentityBasedConv1x1(channels=in_channels, groups=groups))
             else:
-                self.dbb_1x1_kxk.add_module('conv1', nn.Conv2d(in_channels=in_channels, out_channels=internal_channels_1x1_3x3,
+                self.dbb_1x1_kxk.add_module('conv1', nn.Conv2d(in_channels=in_channels, out_channels=internal_channels_1x1_kxk,
                                                             kernel_size=1, stride=1, padding=0, groups=groups, bias=False))
-            self.dbb_1x1_kxk.add_module('bn1', BNAndPadLayer(pad_pixels=padding, num_features=internal_channels_1x1_3x3, affine=True))
-            self.dbb_1x1_kxk.add_module('conv2', nn.Conv2d(in_channels=internal_channels_1x1_3x3, out_channels=out_channels,
+            self.dbb_1x1_kxk.add_module('bn1', BNAndPadLayer(pad_pixels=padding, num_features=internal_channels_1x1_kxk, affine=True))
+            self.dbb_1x1_kxk.add_module('conv2', nn.Conv2d(in_channels=internal_channels_1x1_kxk, out_channels=out_channels,
                                                             kernel_size=kernel_size, stride=stride, padding=0, groups=groups, bias=False))
             self.dbb_1x1_kxk.add_module('bn2', nn.BatchNorm2d(out_channels))
 
@@ -299,7 +299,7 @@ class DiverseBranchBlock(nn.Module):
             "padding"                  : 0,
             "dilation"                 : 1,
             "groups"                   : 1,
-            "internal_channels_1x1_3x3": None,
+            "internal_channels_1x1_kxk": None,
             "single_init"              : False
         }
         for key in default_params.keys():
