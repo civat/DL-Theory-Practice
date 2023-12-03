@@ -52,7 +52,6 @@ class Conv2d(nn.Module):
     def get_conv(configs):
         default_params = {
             "kernel_size"  : 3,
-            "stride"       : 1,
             "padding"      : 0,
             "dilation"     : 1,
             "groups"       : 1,
@@ -70,6 +69,8 @@ class Conv2d(nn.Module):
             default_params["in_channels"] = configs["in_channels"]
         if "out_channels" in configs:
             default_params["out_channels"] = configs["out_channels"]
+        if "stride" in configs:
+            default_params["stride"] = configs["stride"]
 
         default_params = utils.set_params(default_params, configs)
         conv = functools.partial(Conv2d, **default_params)
