@@ -30,7 +30,6 @@ Model:
         conv:
           MobileOneBlock:
             kernel_size: 3
-            bias: False
             padding: 1
             r: 4
             act: "ReLU"
