@@ -48,9 +48,9 @@ Model:
       lr: 0.1
       weight_decay: 0.00004
   Scheduler:
-    MultiStepLR:
-      gamma: 0.98
-      milestones: [45000, 90000, 135000, 180000, 225000, 270000, 315000, 360000, 405000, 450000, 495000]
+    StepLR:
+      gamma: 0.5
+      step_size: 30000
 
 Train:
   iterations: 540000
