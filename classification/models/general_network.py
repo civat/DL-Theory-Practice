@@ -75,7 +75,7 @@ class GeneralNetwork(nn.Module):
             if f"conv{i}" not in config_convs:
                 raise ValueError(f"The key \"conv{i}\" is not specified.")
             else:
-                conv_list += register.get_conv(config_convs, f"conv{i}")
+                conv_list.append(register.get_conv(config_convs, f"conv{i}"))
 
         fc_list = None
         if "fcs" in configs:
@@ -85,7 +85,7 @@ class GeneralNetwork(nn.Module):
                 if f"fc{i}" not in config_fcs:
                     raise ValueError(f"The key \"fc{i}\" is not specified.")
                 else:
-                    fc_list += register.get_conv(config_fcs, f"fc{i}")
+                    fc_list.append(register.get_conv(config_fcs, f"fc{i}"))
 
         act = register.get_activation(configs["last_act"])
 
