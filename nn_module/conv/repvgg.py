@@ -6,7 +6,7 @@ import functools
 import numpy as np
 
 import register
-from classification.models.se import SEBlock
+from classification import utils
 
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
@@ -19,9 +19,13 @@ def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
 
 @register.NAME_TO_CONVS.register("RepVGGBlock")
 class RepVGGBlock(nn.Module):
+    """
+    RepVGG block. See the paper for more details:
+    https://arxiv.org/pdf/2101.03697.pdf.
+    """
 
-    def __init__(self, in_channels, out_channels, kernel_size,
-                 stride=1, padding=0, dilation=1, groups=1, bias=False, padding_mode='zeros', deploy=False, use_se=False):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1,
+                 padding_mode='zeros', deploy=False):
         super(RepVGGBlock, self).__init__()
         self.deploy = deploy
         self.groups = groups
@@ -33,15 +37,11 @@ class RepVGGBlock(nn.Module):
         padding_11 = padding - kernel_size // 2
 
         self.nonlinearity = nn.ReLU()
-
-        if use_se:
-            self.se = SEBlock(out_channels, internal_neurons=out_channels // 16)
-        else:
-            self.se = nn.Identity()
+        self.se = nn.Identity()
 
         if deploy:
             self.rbr_reparam = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride,
-                                      padding=padding, dilation=dilation, groups=groups, bias=True, padding_mode=padding_mode)
+                                         padding=padding, dilation=dilation, groups=groups, bias=True, padding_mode=padding_mode)
 
         else:
             self.rbr_identity = nn.BatchNorm2d(num_features=in_channels) if out_channels == in_channels and stride == 1 else None
@@ -148,13 +148,13 @@ class RepVGGBlock(nn.Module):
 
     @staticmethod
     def get_conv(configs):
-        k = configs["k"] if "k" in configs.keys() else 1
         default_params = {
-            "use_se": False,
+            "kernel_size" : 3,
+            "padding"     : 0,
+            "dilation"    : 1,
+            "groups"      : 1,
+            "padding_mode": "zeros",
         }
-        for key in default_params.keys():
-            if key in configs:
-                default_params[key] = configs[key]
-
+        default_params = utils.set_params(default_params, configs)
         conv = functools.partial(RepVGGBlock, **default_params)
         return conv

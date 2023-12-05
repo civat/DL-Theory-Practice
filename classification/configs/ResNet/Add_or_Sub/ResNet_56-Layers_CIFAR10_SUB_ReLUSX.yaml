@@ -27,7 +27,7 @@ Model:
     conv1          :
       ConvNormAct:
         norm: "BatchNorm"
-        act: "ReLU"
+        act: "ReLUSX"
         conv:
           Conv2d:
             kernel_size: 3
@@ -35,11 +35,12 @@ Model:
             padding: 1
     conv2:
       ResBlock:
-        act: "ReLU"
+        add: False
+        act: "ReLUSX"
         conv1:
           ConvNormAct:
             norm: "BatchNorm"
-            act: "ReLU"
+            act: "ReLUSX"
             conv:
               Conv2d:
                 kernel_size: 3
@@ -80,6 +81,6 @@ Model:
 Train:
   iterations: 64000
   save_freq: 500
-  output: "../workspace/Output/ResNet/ResNet_56-Layers_CIFAR10"
+  output: "../workspace/Output/ResNet/Add_or_Sub/ResNet_56-Layers_CIFAR10_SUB_ReLUSX"
   keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu

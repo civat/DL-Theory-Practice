@@ -15,31 +15,22 @@ Argumentation:
   mean: [0.485, 0.456, 0.406]
   std: [0.229, 0.224, 0.225]
 Model:
-  PlainOANet:
+  PlainNet:
     in_channels    : 3
     hidden_channels: 16
-    n_blocks_list  : [1, 9, 9, 9]
+    n_blocks_list  : [1, 5, 5, 5]
     stride_list    : [1, 1, 2, 2]
     stride_factor  : 2
     num_classes    : 10
-    last_act       : "IdentityAct"
-    use_pool       : False
-    conv1          :
-      ConvNormAct:
-        norm: "BatchNorm"
-        act: "ReLU"
-        conv:
-          Conv2d:
-            kernel_size: 3
-            bias: False
-            padding: 1
-    conv2:
+    last_act       : "ReLU"
+    conv:
       ResBlock:
-        act: "ReLU"
+        act: "IdentityAct"
         conv1:
           ConvNormAct:
             norm: "BatchNorm"
             act: "ReLU"
+            pre_act: True
             conv:
               Conv2d:
                 kernel_size: 3
@@ -48,7 +39,8 @@ Model:
         conv2:
           ConvNormAct:
             norm: "BatchNorm"
-            act: "IdentityAct"
+            act: "ReLU"
+            pre_act: True
             conv:
               Conv2d:
                 kernel_size: 3
@@ -57,7 +49,8 @@ Model:
         conv_sc:
           ConvNormAct:
             norm: "BatchNorm"
-            act: "IdentityAct"
+            act: "ReLU"
+            pre_act: True
             conv:
               Conv2d:
                 kernel_size: 1
@@ -80,6 +73,6 @@ Model:
 Train:
   iterations: 64000
   save_freq: 500
-  output: "../workspace/Output/ResNet/ResNet_56-Layers_CIFAR10"
+  output: "../workspace/Output/ResNet/PreResNet_32-Layers_CIFAR10"
   keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu

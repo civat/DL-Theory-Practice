@@ -12,6 +12,20 @@ from torchvision import datasets
 import register
 from classification import utils
 from classification.dataset import DatasetCls
+from classification.transforms.transforms import ToRGB
+
+
+def run_one_step(x, y):
+    if device == "cuda":
+        x = x.to(device_id)
+        y = y.to(device_id)
+    pred = model(x)
+    if num_classes == 2:
+        pred = pred.squeeze(-1)
+        y = y.float()
+    loss = criterion(pred, y)
+    return loss, pred, y
+
 
 if __name__ == "__main__":
     # Kindly print the current path of your env.
@@ -21,7 +35,7 @@ if __name__ == "__main__":
     # Load configs
     parser = argparse.ArgumentParser(description="Trainer for classification task.")
     parser.add_argument('--config_file', type=str,
-                        default="classification/configs/MobileOne/MobileOne_20_CIFAR10_EXP.yaml",
+                        default="classification/configs/MobileNet_v1/MobileNet_ImageNet_224_EXP.yaml",
                         help="Path of config file.")
     config_file_path = parser.parse_args().config_file
     configs = utils.load_yaml_file(config_file_path)
@@ -39,14 +53,19 @@ if __name__ == "__main__":
     # simply setting the tag "Argumentation" in the config file.
     # See config files in the "classification/configs" dict for example.
     train_trans = []
+    mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
     if "Argumentation" in configs:
         train_trans = utils.get_transformations(configs["Argumentation"])
         if "mean" in configs["Argumentation"] and "std" in configs["Argumentation"]:
             mean, std = configs["Argumentation"]["mean"], configs["Argumentation"]["std"]
-        else:
-            # If mean OR std is not specified, we use the default values from ImageNet
-            mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-    trans = [
+
+    # If the channels of input image is not 3,
+    # covert it to 3 channels.
+    trans = []
+    if len(mean) == 3:
+        trans += [ToRGB()]
+
+    trans += [
         # You need to specify the image size by setting "h" and "w" in the config file
         transforms.Resize((configs["Dataset"]["h"], configs["Dataset"]["w"])),
         transforms.ToTensor(),
@@ -96,18 +115,8 @@ if __name__ == "__main__":
     # The simplest way to set the value is:
     # 1) set to "cpu" if cpu is used;
     # 2) set to a list of IDs (int) if GPUs are used.
-    # E.g. you can set to [0] is only one GPU is used.
-    device = configs["Train"]["device"]
-    device_id = None
-    if isinstance(device, str):
-        assert device in ["cuda", "cpu"]
-        if device == "cuda":
-            device_id = "cuda:0"
-            device_ids = [0]
-    elif isinstance(device, list):
-        device_id = f"cuda:{device[0]}"
-        device_ids = list(device)
-        device = "cuda"
+    # E.g. you can set to [0] if only one GPU is used.
+    device_id, device_ids, device = utils.parse_device(configs["Train"]["device"])
 
     # Load a pre-trained model if "snapshot" is specified
     if "snapshot" in configs["Train"]:
@@ -169,88 +178,67 @@ if __name__ == "__main__":
         scheduler = utils.get_scheduler(optimizer, configs["Model"]["Scheduler"])
 
     # Following training scripts are verbose.
-    # Of ofcourse we can make it clear to warp some codes.
-    # But as most codes are used only here, warping makes no sense.
+    # Of course, we can make it clear to warp some codes,
+    # but as most codes are used only here, warping makes no sense.
     trn_error_list, tst_error_list, trn_loss_list, tst_loss_list = [], [], [], []
     iterations, best_error, best_iter, trn_loss, trn_pos = 0, 1., 0, 0., 0.
     save_freq = configs["Train"]["save_freq"]
 
-    while True:
-        for x, y in trn_loader:
-            if iterations == configs["Train"]["iterations"]:
-                break
-            model.train()
-            optimizer.zero_grad()
-            if device == "cuda":
-                x = x.to(device_id)
-                y = y.to(device_id)
+    with torch.autograd.set_detect_anomaly(True):
+        while True:
+            for x, y in trn_loader:
+                if iterations == configs["Train"]["iterations"]:
+                    break
+                model.train()
+                optimizer.zero_grad()
+                loss, pred, y = run_one_step(x, y)
+                loss.backward()
+                optimizer.step()
+                if num_classes == 2:
+                    trn_pos += (pred.gt(0.5) == y).sum().cpu()
+                else:
+                    trn_pos += (pred.argmax(dim=-1) == y).sum().cpu()
+                trn_loss += loss.item()
+                if scheduler is not None:
+                    scheduler.step()
 
-            pred = model(x)
-            if num_classes == 2:
-                pred = pred.squeeze(-1)
-                y = y.float()
-            loss = criterion(pred, y)
-            loss.backward()
-            optimizer.step()
-            if num_classes == 2:
-                trn_pos += (pred.gt(0.5) == y).sum().cpu()
-            else:
-                trn_pos += (pred.argmax(dim=-1) == y).sum().cpu()
-            trn_loss += loss.item()
-            if scheduler is not None:
-                scheduler.step()
+                iterations += 1
+                if iterations % save_freq == 0:
+                    if keep_gradients:
+                        for name, layer in model.named_modules():
+                            if isinstance(layer, nn.Conv2d):
+                                length = 1
+                                for s in layer.weight.grad.size():
+                                    length *= s
+                                g = torch.linalg.vector_norm(layer.weight.grad) / length
+                                gradients_dic[name].append(g.item())
 
-            iterations += 1
-            if iterations % save_freq == 0:
-                if keep_gradients:
-                    for name, layer in model.named_modules():
-                        if isinstance(layer, nn.Conv2d):
-                            length = 1
-                            for s in layer.weight.grad.size():
-                                length *= s
-                            g = torch.linalg.vector_norm(layer.weight.grad) / length
-                            gradients_dic[name].append(g.item())
+                    trn_loss = trn_loss / save_freq
+                    trn_loss_list.append(trn_loss)
+                    trn_error = 1 - trn_pos / (batch_size * save_freq)
+                    trn_error_list.append(trn_error)
 
-                trn_loss = trn_loss / save_freq
-                trn_loss_list.append(trn_loss)
-                trn_error = 1 - trn_pos / (batch_size * save_freq)
-                trn_error_list.append(trn_error)
-                log.logger.info(f"The training loss at {iterations}-th iteration : {trn_loss}")
-                log.logger.info(f"The training error at {iterations}-th iteration: {trn_error}")
-                trn_loss = 0.
-                trn_pos = 0.
+                    log.logger.info("{:<40}  {:<8}".format(f"Train loss  at {iterations}-th iteration   : ", trn_loss))
+                    log.logger.info("{:<40}  {:<8}".format(f"Train error at {iterations}-th iteration   : ", trn_error))
+                    trn_loss, trn_pos, tst_loss, tst_pos = 0., 0., 0., 0.
+                    model.eval()
+                    with torch.no_grad():
+                        for x, y in tst_loader:
+                            loss, pred, y = run_one_step(x, y)
+                            tst_loss += loss.item() * x.size(0)
+                            if num_classes == 2:
+                                tst_pos += (pred.gt(0.5) == y).sum().cpu()
+                            else:
+                                tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
 
-                tst_loss = 0.
-                tst_pos = 0.
-                model.eval()
-                with torch.no_grad():
-                    for x, y in tst_loader:                 
-                        if device == "cuda":
-                            x = x.to(device_id)
-                            y = y.to(device_id)
+                        tst_error = 1 - tst_pos / len(tst_data)
+                        tst_loss = tst_loss / len(tst_data)
+                        tst_loss_list.append(tst_loss)
+                        tst_error_list.append(tst_error)
+                        log.logger.info("{:<40}  {:<8}".format(f"Test  loss  at {iterations}-th iteration   : ", tst_loss))
+                        log.logger.info("{:<40}  {:<8}".format(f"Test  error at {iterations}-th iteration   : ", tst_error))
 
-                        pred = model(x)
-                        if num_classes == 2:
-                            pred = pred.squeeze(-1)
-                            y = y.float()
-                        loss = criterion(pred, y)
-                        tst_loss += loss.item() * x.size(0)
-                        if num_classes == 2:
-                            tst_pos += (pred.gt(0.5) == y).sum().cpu()
-                        else:
-                            tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
-
-                    tst_error = 1 - tst_pos / len(tst_data)
-                    tst_loss = tst_loss / len(tst_data)
-                    tst_loss_list.append(tst_loss)
-                    tst_error_list.append(tst_error)
-                    log.logger.info(f"The test loss at {iterations}-th iteration : {tst_loss}")
-                    log.logger.info(f"The test error at {iterations}-th iteration: {tst_error}")
-
-                    # save best
-                    if tst_error < best_error:
-                        best_error = tst_error
-                        best_iter = iterations
+                        # save last
                         if device == "cuda":
                             state_dic = model.module.state_dict()
                         else:
@@ -264,100 +252,79 @@ if __name__ == "__main__":
                             "trn_error": trn_error_list,
                             "tst_error": tst_error_list,
                         }
-                        torch.save(state, os.path.join(output_path, "best.pth"))
+                        if keep_gradients:
+                            state["gradients"] = gradients_dic
+                        torch.save(state, os.path.join(output_path, "last.pth"))
 
-                    # save last
-                    if device == "cuda":
-                        state_dic = model.module.state_dict()
-                    else:
-                        state_dic = model.state_dict()
-                    state = {
-                        "model": state_dic,
-                        "opt": optimizer.state_dict(),
-                        "iterations": iterations,
-                        "trn_loss": trn_loss_list,
-                        "tst_loss": tst_loss_list,
-                        "trn_error": trn_error_list,
-                        "tst_error": tst_error_list
-                    }
-                    if keep_gradients:
-                        state["gradients"] = gradients_dic
-                    torch.save(state, os.path.join(output_path, "last.pth"))
+                        # save best
+                        if tst_error < best_error:
+                            best_error = tst_error
+                            best_iter = iterations
+                            torch.save(state, os.path.join(output_path, "best.pth"))
 
-                    log.logger.info(f"The best iteration at {iterations}-th iteration: {best_iter}")
-                    log.logger.info(f"The best error at {iterations}-th iteration    : {best_error}")
-                    log.logger.info("")
+                        log.logger.info("{:<40}  {:<8}".format(f"Best iteration at {iterations}-th iteration: ", best_iter))
+                        log.logger.info("{:<40}  {:<8}".format(f"Best error     at {iterations}-th iteration: ", best_error))
+                        log.logger.info("")
 
-                    plt.figure(figsize=(20, 8), dpi=80)
-                    epoch_list = [i + 1 for i in range(len(trn_loss_list))]
-                    plt.plot(epoch_list, trn_error_list, color="red", label="training_error")
-                    plt.plot(epoch_list, tst_error_list, color="blue", label="test_error")
-                    plt.xlabel(f"iterations x{save_freq}")
-                    plt.ylabel("error")
-                    plt.legend(loc="upper right")
-                    plt.savefig(os.path.join(configs["Train"]["output"], "train_test_curve.jpg"))
-                    plt.close()
+                        plt.figure(figsize=(20, 8), dpi=80)
+                        epoch_list = [i + 1 for i in range(len(trn_loss_list))]
+                        plt.plot(epoch_list, trn_error_list, color="red", label="training_error")
+                        plt.plot(epoch_list, tst_error_list, color="blue", label="test_error")
+                        plt.xlabel(f"iterations x{save_freq}")
+                        plt.ylabel("error")
+                        plt.legend(loc="upper right")
+                        plt.savefig(os.path.join(configs["Train"]["output"], "train_test_curve.jpg"))
+                        plt.close()
 
-        if iterations == configs["Train"]["iterations"]:
-            break
+            if iterations == configs["Train"]["iterations"]:
+                break
 
-    if "deploy" in configs["Train"] and configs["Train"]["deploy"]:
-        for name, layer in model.named_modules():
-            method_list = [func for func in dir(layer) if callable(getattr(layer, func))]
+        if "deploy" in configs["Train"] and configs["Train"]["deploy"]:
+            for name, layer in model.named_modules():
+                method_list = [func for func in dir(layer) if callable(getattr(layer, func))]
+                if "switch_to_deploy" in method_list:
+                    layer.switch_to_deploy()
+
+            method_list = [func for func in dir(model) if callable(getattr(model, func))]
             if "switch_to_deploy" in method_list:
-                layer.switch_to_deploy()
+                model.switch_to_deploy()
 
-        method_list = [func for func in dir(model) if callable(getattr(model, func))]
-        if "switch_to_deploy" in method_list:
-            model.switch_to_deploy()
+            macs_deploy, params_deploy = get_model_complexity_info(model,
+                                                                   input_shape,
+                                                                   as_strings=True,
+                                                                   print_per_layer_stat=True,
+                                                                   verbose=True)
+            log.logger.info('{:<50}  {:<8}'.format('Computational complexity (original): ', macs))
+            log.logger.info('{:<50}  {:<8}'.format('Number of parameters     (original): ', params))
+            log.logger.info('{:<50}  {:<8}'.format('Computational complexity (deploy)  : ', macs_deploy))
+            log.logger.info('{:<50}  {:<8}'.format('Number of parameters     (deploy)  : ', params_deploy))
 
-        input_shape = (model_configs["in_channels"],
-                       configs["Dataset"]["h"],
-                       configs["Dataset"]["w"])
-        macs_deploy, params_deploy = get_model_complexity_info(model,
-                                                               input_shape,
-                                                               as_strings=True,
-                                                               print_per_layer_stat=True,
-                                                               verbose=True)
-        log.logger.info('{:<30}{:<8}'.format('Computational complexity (original): ', macs))
-        log.logger.info('{:<30}{:<8}'.format('Number of parameters     (original): ', params))
-        log.logger.info('{:<30}{:<8}'.format('Computational complexity (deploy)  : ', macs_deploy))
-        log.logger.info('{:<30}{:<8}'.format('Number of parameters     (deploy)  : ', params_deploy))
+            if "deploy_test" in configs["Train"] and configs["Train"]["deploy_test"]:
+                tst_loss = 0.
+                tst_pos = 0.
+                model.eval()
+                with torch.no_grad():
+                    for x, y in tst_loader:
+                        loss, pred, y = run_one_step(x, y)
+                        tst_loss += loss.item() * x.size(0)
+                        if num_classes == 2:
+                            tst_pos += (pred.gt(0.5) == y).sum().cpu()
+                        else:
+                            tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
 
-        if "deploy_test" in configs["Train"] and configs["Train"]["deploy_test"]:
-            tst_loss = 0.
-            tst_pos = 0.
-            model.eval()
-            with torch.no_grad():
-                for x, y in tst_loader:
-                    if device == "cuda":
-                        x = x.to(device_id)
-                        y = y.to(device_id)
+                    tst_error = 1 - tst_pos / len(tst_data)
+                    tst_loss = tst_loss / len(tst_data)
+                    tst_loss_list.append(tst_loss)
+                    tst_error_list.append(tst_error)
+                    log.logger.info("{:<30}  {:<8}".format(f"Test loss  at {iterations}-th iteration: ", tst_loss))
+                    log.logger.info("{:<30}  {:<8}".format(f"Test error at {iterations}-th iteration: ", tst_error))
 
-                    pred = model(x)
-                    if num_classes == 2:
-                        pred = pred.squeeze(-1)
-                        y = y.float()
-                    loss = criterion(pred, y)
-                    tst_loss += loss.item() * x.size(0)
-                    if num_classes == 2:
-                        tst_pos += (pred.gt(0.5) == y).sum().cpu()
-                    else:
-                        tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
-
-                tst_error = 1 - tst_pos / len(tst_data)
-                tst_loss = tst_loss / len(tst_data)
-                tst_loss_list.append(tst_loss)
-                tst_error_list.append(tst_error)
-                log.logger.info(f"The test loss at{iterations}-th iteration :{tst_loss}")
-                log.logger.info(f"The test error at{iterations}-th iteration:{tst_error}")
-
-        # save last
-        if device == "cuda":
-            state_dic = model.module.state_dict()
-        else:
-            state_dic = model.state_dict()
-        state = {
-            "model": state_dic
-        }
-        torch.save(state, os.path.join(output_path, "model_deploy_last.pth"))
+            # save last
+            if device == "cuda":
+                state_dic = model.module.state_dict()
+            else:
+                state_dic = model.state_dict()
+            state = {
+                "model": state_dic
+            }
+            torch.save(state, os.path.join(output_path, "model_deploy_last.pth"))

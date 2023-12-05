@@ -18,7 +18,7 @@ Model:
   PlainOANet:
     in_channels    : 3
     hidden_channels: 16
-    n_blocks_list  : [1, 9, 9, 9]
+    n_blocks_list  : [1, 5, 5, 5]
     stride_list    : [1, 1, 2, 2]
     stride_factor  : 2
     num_classes    : 10
@@ -80,6 +80,6 @@ Model:
 Train:
   iterations: 64000
   save_freq: 500
-  output: "../workspace/Output/ResNet/ResNet_56-Layers_CIFAR10"
+  output: "../workspace/Output/ResNet/ResNet_32-Layers_CIFAR10"
   keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu

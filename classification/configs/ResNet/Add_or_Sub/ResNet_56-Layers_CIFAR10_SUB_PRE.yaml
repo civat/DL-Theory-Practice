@@ -28,6 +28,7 @@ Model:
       ConvNormAct:
         norm: "BatchNorm"
         act: "ReLU"
+        pre_act: True
         conv:
           Conv2d:
             kernel_size: 3
@@ -35,11 +36,13 @@ Model:
             padding: 1
     conv2:
       ResBlock:
-        act: "ReLU"
+        add: False
+        act: "IdentityAct"
         conv1:
           ConvNormAct:
             norm: "BatchNorm"
             act: "ReLU"
+            pre_act: True
             conv:
               Conv2d:
                 kernel_size: 3
@@ -48,7 +51,8 @@ Model:
         conv2:
           ConvNormAct:
             norm: "BatchNorm"
-            act: "IdentityAct"
+            act: "ReLU"
+            pre_act: True
             conv:
               Conv2d:
                 kernel_size: 3
@@ -57,7 +61,8 @@ Model:
         conv_sc:
           ConvNormAct:
             norm: "BatchNorm"
-            act: "IdentityAct"
+            act: "ReLU"
+            pre_act: True
             conv:
               Conv2d:
                 kernel_size: 1
@@ -80,6 +85,6 @@ Model:
 Train:
   iterations: 64000
   save_freq: 500
-  output: "../workspace/Output/ResNet/ResNet_56-Layers_CIFAR10"
+  output: "../workspace/Output/ResNet/Add_or_Sub/ResNet_56-Layers_CIFAR10_SUB_PRE"
   keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu

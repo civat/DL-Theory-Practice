@@ -35,6 +35,7 @@ Model:
             padding: 1
     conv2:
       ResBlock:
+        add: False
         act: "ReLU"
         conv1:
           ConvNormAct:
@@ -67,7 +68,7 @@ Model:
     SGD:
       lr: 0.1
       momentum: 0.9
-      weight_decay: 1e-4
+      weight_decay: 5e-4
   Scheduler:
     MultiStepLR:
       gamma: 0.1
@@ -80,6 +81,6 @@ Model:
 Train:
   iterations: 64000
   save_freq: 500
-  output: "../workspace/Output/ResNet/ResNet_56-Layers_CIFAR10"
+  output: "../workspace/Output/ResNet/Add_or_Sub/ResNet_56-Layers_CIFAR10_SUB"
   keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu

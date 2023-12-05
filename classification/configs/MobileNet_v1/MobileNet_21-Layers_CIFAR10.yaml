@@ -18,7 +18,7 @@ Model:
   PlainOANet:
     in_channels    : 3
     hidden_channels: 16
-    n_blocks_list  : [1, 9, 9, 9]
+    n_blocks_list  : [1, 3, 3, 3]
     stride_list    : [1, 1, 2, 2]
     stride_factor  : 2
     num_classes    : 10
@@ -27,42 +27,23 @@ Model:
     conv1          :
       ConvNormAct:
         norm: "BatchNorm"
-        act: "ReLU"
+        act: "ReLU6"
         conv:
           Conv2d:
             kernel_size: 3
             bias: False
             padding: 1
     conv2:
-      ResBlock:
-        act: "ReLU"
-        conv1:
-          ConvNormAct:
+      ConvNormAct:
+        norm: "BatchNorm"
+        act: "ReLU6"
+        conv:
+          DSConv:
+            kernel_size: 3
+            bias: False
+            padding: 1
             norm: "BatchNorm"
-            act: "ReLU"
-            conv:
-              Conv2d:
-                kernel_size: 3
-                bias: False
-                padding: 1
-        conv2:
-          ConvNormAct:
-            norm: "BatchNorm"
-            act: "IdentityAct"
-            conv:
-              Conv2d:
-                kernel_size: 3
-                bias: False
-                padding: 1
-        conv_sc:
-          ConvNormAct:
-            norm: "BatchNorm"
-            act: "IdentityAct"
-            conv:
-              Conv2d:
-                kernel_size: 1
-                bias: False
-                padding: 0
+            act: "ReLU6"
   OPT:
     SGD:
       lr: 0.1
@@ -76,10 +57,9 @@ Model:
     kaiming_normal_:
       mode: "fan_in"
       nonlinearity: "relu"
-
 Train:
   iterations: 64000
   save_freq: 500
-  output: "../workspace/Output/ResNet/ResNet_56-Layers_CIFAR10"
+  output: "../workspace/Output/MobileNet_v1/MobileNet_21-Layers_CIFAR10"
   keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu

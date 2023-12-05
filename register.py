@@ -11,6 +11,7 @@ MODEL_MODULES = {
     "gan/models"           : "gan.models.",
     "nn_module/conv"       : "nn_module.conv.",
     "nn_module/norm"       : "nn_module.norm.",
+    "nn_module/act"        : "nn_module.act.",
 }
 
 
@@ -66,9 +67,9 @@ def make_network(model_config):
     """
     Construct the model.
     The Register can automatically load corresponding model
-    using the model name once it was registered in the class definition.
+    using the model name as long as it was registered in the class definition.
     Each model class (under "classification/models") defines its own "make_network" method to parse the args.
-    So you can see the model's "make_network" method to find out the valid args for the model.
+    So you can see the model's "make_network" method to find out the valid args for each model.
     """
     for name in name_to_model.keys():
         if name in model_config:
@@ -84,31 +85,32 @@ def get_norm(norm_type):
     Parameters
     ----------
     norm_type: str or dict
-      If norm_type is str, it is inferred as the name of norm method.
-      We get the Class using the dict NAME_TO_NORMS.
-      Example:
-        norm: "BatchNorm"
+        If norm_type is str, it is inferred as the name of norm method.
+        We get the Class using the dict NAME_TO_NORMS.
+        Example:
+            norm: "BatchNorm"
 
-      If norm_type is dict, it is inferred as norm name with some
-      initialization args.
-      We can use this method to provide some args which are irrelevant to
-      input size, such as eps and momentum for BatchNorm.
-      Examples:
-        norm:
-          BatchNorm:
-            eps: 1e-5,
-            momentum: 0.1
+        If norm_type is dict, it is inferred as norm name with some
+        initialization args.
+        We can use this method to provide some args which are irrelevant to
+        input size, such as eps and momentum for BatchNorm.
+        Examples:
+            norm:
+              BatchNorm:
+                eps: 1e-5,
+                momentum: 0.1
     """
     def get_norm_by_name(name):
         if name in NAME_TO_NORMS:
             return NAME_TO_NORMS[name]
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"The specified {name} is not implemented. The available values are {NAME_TO_NORMS.keys()}")
 
+    if norm_type is None:
+        return get_norm_by_name("Identity")
     if isinstance(norm_type, str):
         norm = get_norm_by_name(norm_type)
-    else:
-        # "norm_type" is a dict
+    elif isinstance(norm_type, dict):
         norm_name = list(norm_type.keys())
         if len(norm_name) > 1:
             raise Exception("Not support more than one norm method!")
@@ -118,20 +120,42 @@ def get_norm(norm_type):
         norm = get_norm_by_name(norm_name)
         norm_configs = norm_type[norm_name]
         norm = partial(norm, **norm_configs)
+    else:
+        raise Exception("norm_type must be str or dict!")
     return norm
 
 
 def get_activation(act_type):
+    """
+    Helper function to get activation Class using their name with args.
+
+    Parameters
+    ----------
+    act_type: str or dict
+        If act_type is str, it is inferred as the name of activation function.
+        We get the Class using the dict NAME_TO_ACTS.
+        Example:
+            act: "ReLU"
+
+        If act_type is dict, it is inferred as activation function name with some
+        initialization args.
+        We can use this method to provide args for activation function.
+        Examples:
+          act:
+            LeakyReLU:
+              negative_slope: 0.2
+    """
     def get_act_by_name(name):
         if name in NAME_TO_ACTS:
             return NAME_TO_ACTS[name]
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"The specified {name} is not implemented. The available values are {NAME_TO_ACTS.keys()}")
 
+    if act_type is None:
+        return get_act_by_name("IdentityAct")
     if isinstance(act_type, str):
         act = get_act_by_name(act_type)
-    else:
-        # "act_type" is a dict
+    elif isinstance(act_type, dict):
         act_name = list(act_type.keys())
         if len(act_name) > 1:
             raise Exception("Not support more than one activation function!")
@@ -141,14 +165,43 @@ def get_activation(act_type):
         act = get_act_by_name(act_name)
         act_configs = act_type[act_name]
         act = partial(act, **act_configs)
+    else:
+        raise Exception("act_type must be str or dict!")
     return act
 
 
-def get_conv(configs):
-    conv_name = configs["conv"] if "conv" in configs else "Conv2d"
-    assert conv_name in NAME_TO_CONVS.keys()
-    conv = NAME_TO_CONVS[conv_name]
-    conv = conv.get_conv(configs)
+def get_conv(configs, conv_name=None):
+    """
+    Helper function to get conv Class using their name with args.
+
+    Parameters
+    ----------
+    configs: dict
+        The dict contains the configs for conv.
+    conv_name: str
+        The KEY name of conv in the config file.
+        If conv_name is None, we use the default name "conv".
+    """
+    conv_name = "conv" if conv_name is None else conv_name
+    conv_type = configs[conv_name] if conv_name in configs else "Conv2d"
+    if isinstance(conv_type, str):
+        assert conv_type in NAME_TO_CONVS, f"Conv type {conv_type} is not supported!"
+        conv = NAME_TO_CONVS[conv_type]
+        conv = conv.get_conv(configs={})  # As conv_type is str, we don't need to pass any args.
+    elif isinstance(conv_type, dict):
+        conv_name = list(conv_type.keys())
+        if len(conv_name) > 1:
+            raise Exception("Not support more than one Conv block!")
+        if len(conv_name) == 0:
+            raise Exception("At least one Conv block must be specified!")
+        conv_name = conv_name[0]
+        if conv_name not in NAME_TO_CONVS.keys():
+            raise NotImplementedError(f"The specified {conv_name} is not implemented. The available values are {NAME_TO_CONVS.keys()}")
+        conv_configs = conv_type[conv_name]
+        conv = NAME_TO_CONVS[conv_name]
+        conv = conv.get_conv(conv_configs)
+    else:
+        raise Exception("conv_type must be str or dict!")
     return conv
 
 
@@ -161,11 +214,13 @@ NAME_TO_NORMS["BatchNorm"] = nn.BatchNorm2d
 
 # Registration for activation
 NAME_TO_ACTS = Register("name_to_acts")
-NAME_TO_ACTS["Identity"] = utils.Identity
+NAME_TO_ACTS["IdentityAct"] = utils.Identity
 NAME_TO_ACTS["Relu"] = nn.ReLU
 NAME_TO_ACTS["ReLU"] = nn.ReLU
 NAME_TO_ACTS["LeakyRelu"] = nn.LeakyReLU
 NAME_TO_ACTS["LeakyReLU"] = nn.LeakyReLU
+NAME_TO_ACTS["ReLU6"] = nn.ReLU6
+NAME_TO_ACTS["Hardswish"] = nn.Hardswish
 
 # Registration for conv
 NAME_TO_CONVS = Register("name_to_convs")
