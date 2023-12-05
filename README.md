@@ -35,7 +35,23 @@ python trainer_classification.py --config_file classification/configs/MobileNet_
 
 * 第二种方式是将trainer_classification.py中的config_file变量的默认值值指定为配置文件路径，然后直接运行trainer_classification.py即可。
 
-要训练GAN网络类似，只需要将trainer_classification.py替换为trainer_gan.py即可。
+
+对于分类任务，有两种方法来指定数据集：
+
+1. 通过关键字name来指定PyTorch内置的数据集。并通过root_path关键字来指定数据集存放的路径。当数据集不存在时，会自动下载到该目录下。目前只支持CIFAR10。
+
+2. 通过关键字trn_path和tst_path来分别指定训练集和测试集所在的根目录。在这种设置下，数据需要按照如下结构准备：
+
+trn_path下包含多个文件夹，每一个文件夹表示不同类别。属于同一类别的图像存放在对应的文件夹下。
+
+例如有一个区分猫狗的数据集。训练集在“cat_dog/”目录下。那么“cat_dog/”目录需要包含一个"cat"文件夹和一个"dog"文件夹。 "cat"文件夹中存放所有用于训练的猫的图像；"dog"文件夹中存放所有用于训练的狗的图像。
+
+tst_path类似处理。
+
+
+要训练GAN网络类似，只需要将trainer_classification.py替换为trainer_gan.py即可。GAN的训练数据要求所有图像都在同一目录下。
+
+强烈建议大家先简要阅读一下[wiki](https://github.com/civat/DL-Theory-Practice/wiki)。
 
 ## 已支持的网络结构
 
@@ -113,3 +129,19 @@ python trainer_classification.py --config_file classification/configs/MobileNet_
 --------------------
 
 请记得仓库有[wiki](https://github.com/civat/DL-Theory-Practice/wiki)。
+
+## 可用的数据资源
+
+--------------------
+### CIFAR10
+
+整理后的图像数据集地址（百度网盘）：链接：https://pan.baidu.com/s/1VnHL3cSpQo-exU8m4OpMTA?pwd=bxvw 提取码：bxvw
+
+### ImageNet-1k
+训练集：https://image-net.org/data/ILSVRC/2012/ILSVRC2012_img_train.tar
+
+验证集：https://image-net.org/data/ILSVRC/2012/ILSVRC2012_img_val.tar
+
+标签文件：https://image-net.org/data/ILSVRC/2012/ILSVRC2012_devkit_t12.tar.gz
+
+数据准备参考此处：https://www.yii666.com/blog/339357.html
